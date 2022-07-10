@@ -12,6 +12,9 @@ pub use okapi::{
 #[doc(inline)]
 pub use okapi_operation_macro::openapi;
 
+#[cfg(feature = "axum-integration")]
+pub mod axum_integration;
+
 pub use self::{
     builder::OpenApiBuilder, components::Components, to_media_types::ToMediaTypes,
     to_responses::ToResponses,

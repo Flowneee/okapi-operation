@@ -1,8 +1,8 @@
 # `okapi-operation`
 
-Library which allow to generate OpenAPI's operation definitions (using types from [`okapi`] crate) with procedural macro [`openapi`].
+Library which allow to generate OpenAPI's operation definitions (using types from `okapi` crate) with procedural macro `#[openapi]`.
 
-## Example (with axum)
+## Example (using axum, but without axum_integration feature)
 
 ```rust,ignore
 use axum::{
@@ -70,12 +70,14 @@ async fn main() {
 
 ## Features
 
-* `macro`: enables re-import of [`openapi`] macro (enabled by default);
-* `axum-integration`: enables integration with [`axum`](https://github.com/tokio-rs/axum) crate (implement traits for certain `axum` types).
+* `macro`: enables re-import of `#[openapi]` macro (enabled by default);
+* `axum-integration`: enables integration with `axum`(https://github.com/tokio-rs/axum) crate (implement traits for certain `axum` types).
 
 ## TODO
 
 * [ ] support cookies
 * [ ] support examples
 * [ ] support inferring schemas of parameters from function definitions
+* [ ] support for renaming or changing paths to okapi/schemars/okapi-operations in macro
+* [ ] more examples
 * [ ] ...

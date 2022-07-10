@@ -46,12 +46,3 @@ impl ToMediaTypes for () {
         Ok(okapi::map! {})
     }
 }
-
-#[cfg(feature = "axum-integration")]
-mod axum_integration {
-    use okapi::schemars::JsonSchema;
-
-    use super::*;
-
-    impl_to_media_types_for_wrapper!(axum::Json<T>, "application/json");
-}

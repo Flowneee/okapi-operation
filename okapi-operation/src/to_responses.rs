@@ -85,13 +85,3 @@ mod impls {
         }
     }
 }
-
-#[cfg(feature = "axum-integration")]
-mod axum_integration {
-    use okapi::{openapi3::Response, schemars::JsonSchema};
-
-    use super::*;
-    use crate::to_media_types::ToMediaTypes;
-
-    impl_to_responses_for_wrapper!(axum::Json<T>);
-}
