@@ -5,9 +5,9 @@ version = "0.1.0"
 authors = ["Andrey Kononov flowneee3@gmail.com"]
 edition = "2021"
 license = "MIT"
-readme = "README.md"
 keywords = ["rust", "openapi", "swagger", "axum"]
 categories = ["web-programming"]
+readme = "../README.md"
 
 [dependencies]
 okapi-operation-macro = { path = "../okapi-operation-macro", version = "0.1.0", optional = true }
