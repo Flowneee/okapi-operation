@@ -1,0 +1,26 @@
+[package]
+name = "okapi-operation-macro"
+description = "Macro implementation for okapi-operation"
+version = "0.1.0"
+authors = ["Andrey Kononov flowneee3@gmail.com"]
+edition = "2021"
+license = "MIT"
+readme = "README.md"
+keywords = ["rust", "openapi", "swagger", "axum"]
+categories = ["web-programming"]
+
+
+[lib]
+proc-macro = true
+
+[dependencies]
+darling = "0.13"
+lazy_static = "1.4"
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "1", features = ["full"] }
+thiserror = "1"
+
+[dev-dependencies]
+axum = "0.5"
+okapi = { version = "0.7.0-rc.1", features = ["preserve_order"] }

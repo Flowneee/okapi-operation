@@ -1,0 +1,33 @@
+[package]
+name = "okapi-operation"
+description = "Procedural macro for generating OpenAPI operation specification (using okapi)"
+version = "0.1.0"
+authors = ["Andrey Kononov flowneee3@gmail.com"]
+edition = "2021"
+license = "MIT"
+readme = "README.md"
+keywords = ["rust", "openapi", "swagger", "axum"]
+categories = ["web-programming"]
+
+[dependencies]
+okapi-operation-macro = { path = "../okapi-operation-macro", version = "0.1.0", optional = true }
+
+anyhow = "1"
+http = "0.2"
+okapi = { version = "0.7.0-rc.1", features = ["preserve_order"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.8"
+
+axum = { version = "0.5", optional = true }
+
+[dev-dependencies]
+axum = { version = "0.5", features = ["headers"] }
+serde = { version = "1", features = ["derive"] }
+
+[features]
+default = ["macro"]
+
+macro = ["okapi-operation-macro"]
+
+axum-integration = ["axum"]
