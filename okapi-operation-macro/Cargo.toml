@@ -8,6 +8,7 @@ license = "MIT"
 keywords = ["rust", "openapi", "swagger", "axum"]
 categories = ["web-programming"]
 readme = "../README.md"
+repository = "https://github.com/Flowneee/okapi-operation"
 
 [lib]
 proc-macro = true
