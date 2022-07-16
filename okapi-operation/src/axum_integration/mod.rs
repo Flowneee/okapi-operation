@@ -1,6 +1,7 @@
 #![doc = include_str!("../../docs/axum_integration.md")]
 
-pub use concat_idents::concat_idents;
+#[doc(hidden)]
+pub use paste::paste;
 
 pub use self::{
     handler_traits::{HandlerExt, HandlerWithOperation, ServiceExt, ServiceWithOperation},
@@ -38,28 +39,143 @@ pub async fn serve_openapi_spec(spec: Extension<OpenApi>) -> Json<OpenApi> {
     Json(spec.0)
 }
 
-/// Macro for expanding and binding OpenAPI operation to handler.
+/// Macro for expanding and binding OpenAPI operation specification
+/// generator to handler or service.
 #[rustfmt::skip]
 #[macro_export]
 macro_rules! openapi_handler {
-    ($p:path) => {
-        $crate::axum_integration::concat_idents!(
-            fn_name = $p, __openapi {
-                $crate::axum_integration::HandlerExt::with_openapi($p, fn_name,)
+    // Just name
+    ($fn_name:ident) => {
+        openapi_handler!(@final $fn_name)
+    };
+
+    // Path
+    ($va:ident $(:: $vb:ident)+) => {
+        openapi_handler!(@path $va $($vb)+)
+    };
+    (@path $va:ident $($vb:ident)+) => {
+        openapi_handler!(@path $($vb)+; $va)
+    };
+    (@path $va:ident $($vb:ident)+; $acc_a:ident $(:: $acc_b:ident)*) => {
+        openapi_handler!(@path $($vb)+; $acc_a $(:: $acc_b)* :: $va)
+    };
+    (@path $va:ident; $acc_a:ident $(:: $acc_b:ident)*) => {
+        openapi_handler!(@final $va, $acc_a $(:: $acc_b)*)
+    };
+
+    (@final $fn_name:ident $(, $prefix_a:ident $(:: $prefix_b:ident)*)?) => {
+        $crate::axum_integration::paste!{
+            {
+                #[allow(unused_imports)]
+                use $crate::axum_integration::{HandlerExt, ServiceExt};
+
+                $($prefix_a $(:: $prefix_b)* ::)? $fn_name
+                    .with_openapi($($prefix_a $(:: $prefix_b)* ::)? [<$fn_name __openapi>])
             }
-        )
+        }
     };
 }
 
-/// Macro for expanding and binding OpenAPI operation to service.
+/// Macro for expanding and binding OpenAPI operation specification
+/// generator to handler or service.
 #[rustfmt::skip]
 #[macro_export]
+#[deprecated = "Use `openapi_handler` instead"]
 macro_rules! openapi_service {
-    ($p:path) => {
-        $crate::axum_integration::concat_idents!(
-            fn_name = $p, __openapi {
-                $crate::axum_integration::ServiceExt::with_openapi($p, fn_name,)
+    ($($t:tt)*) => {
+        {
+            use $crate::*;
+            openapi_handler!($($t)*)
+        }
+    }
+}
+
+#[cfg(test)]
+mod openapi_macro {
+    use axum::body::Body;
+    use http::Request;
+
+    use super::*;
+
+    #[test]
+    fn openapi_handler_name() {
+        #[openapi]
+        async fn handle() {}
+
+        let _ = Router::<Body>::new().route("/", get(openapi_handler!(handle)));
+    }
+
+    #[test]
+    fn openapi_handler_path() {
+        mod outer {
+            pub mod inner {
+                use crate::*;
+
+                #[openapi]
+                pub async fn handle() {}
             }
-        )
-    };
+        }
+
+        let _ = Router::<Body>::new().route("/", get(openapi_handler!(outer::inner::handle)));
+    }
+
+    #[test]
+    fn openapi_service_name() {
+        #[openapi]
+        async fn service(_: Request<Body>) {
+            unimplemented!()
+        }
+
+        let _ = Router::<Body>::new().route("/", get(openapi_handler!(service)));
+    }
+
+    #[test]
+    fn openapi_service_path() {
+        mod outer {
+            pub mod inner {
+                use axum::body::Body;
+                use http::Request;
+
+                use crate::*;
+
+                #[openapi]
+                pub async fn service(_: Request<Body>) {
+                    unimplemented!()
+                }
+            }
+        }
+
+        let _ = Router::<Body>::new().route("/", get(openapi_handler!(outer::inner::service)));
+    }
+
+    #[allow(deprecated)]
+    #[test]
+    fn openapi_service_alias_name() {
+        #[openapi]
+        async fn service(_: Request<Body>) {
+            unimplemented!()
+        }
+
+        let _ = Router::<Body>::new().route("/", get(openapi_service!(service)));
+    }
+
+    #[allow(deprecated)]
+    #[test]
+    fn openapi_service_alias_path() {
+        mod outer {
+            pub mod inner {
+                use axum::body::Body;
+                use http::Request;
+
+                use crate::*;
+
+                #[openapi]
+                pub async fn service(_: Request<Body>) {
+                    unimplemented!()
+                }
+            }
+        }
+
+        let _ = Router::<Body>::new().route("/", get(openapi_service!(outer::inner::service)));
+    }
 }

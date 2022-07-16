@@ -3,6 +3,14 @@ All notable changes to this project will be documented in the changelog of the r
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
 
+## [Unreleased]
+### Fixed
+ - Macro `openapi_handler` now correctly handle paths.
+
+### Deprecated
+ - Macro `openapi_service`, now `openapi_handler` can handle both functions and services.
+
+
 ## [0.1.1] - 2022-07-11
 ### Fixed
  - docs.rs features.
