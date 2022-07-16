@@ -2,6 +2,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/okapi-operation)](https://crates.io/crates/okapi-operation)
 [![docs.rs](https://img.shields.io/docsrs/okapi-operation/latest)](https://docs.rs/okapi-operation/latest)
+![CI](https://github.com/Flowneee/okapi-operation/actions/workflows/ci.yml/badge.svg)
 
 Library which allow to generate OpenAPI's operation definitions (using types from `okapi` crate) with procedural macro `#[openapi]`.
 
