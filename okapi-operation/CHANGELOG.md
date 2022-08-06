@@ -3,7 +3,10 @@ All notable changes to this project will be documented in the changelog of the r
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
 
-## [Unreleased]
+## [0.1.2] - 2022-08-06
+### Added
+ - Cookie parameters.
+
 ### Fixed
  - Macro `openapi_handler` now correctly handle paths.
 

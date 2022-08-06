@@ -13,6 +13,8 @@ use crate::{
     utils::{meta_to_meta_list, nested_meta_to_meta},
 };
 
+use super::cookie::{Cookie, COOKIE_ATTRIBUTE_NAME};
+
 // TODO: support cookie parameters
 // TODO: support parameters from function signature
 
@@ -49,6 +51,7 @@ pub(super) struct Parameters {
     header_parameters: Vec<Header>,
     path_parameters: Vec<Path>,
     query_parameters: Vec<Query>,
+    cookie_parameters: Vec<Cookie>,
     ref_parameters: Vec<Reference>,
 }
 
@@ -68,6 +71,8 @@ impl FromMeta for Parameters {
                 this.path_parameters.push(Path::from_meta(meta)?);
             } else if meta_ident == QUERY_ATTRIBUTE_NAME {
                 this.query_parameters.push(Query::from_meta(meta)?);
+            } else if meta_ident == COOKIE_ATTRIBUTE_NAME {
+                this.cookie_parameters.push(Cookie::from_meta(meta)?);
             } else if meta_ident == REFERENCE_ATTRIBUTE_NAME {
                 this.ref_parameters.push(Reference::from_meta(meta)?);
             } else {

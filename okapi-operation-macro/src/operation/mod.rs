@@ -11,6 +11,7 @@ use crate::{
     OPENAPI_FUNCTION_NAME_SUFFIX,
 };
 
+mod cookie;
 mod external_docs;
 mod header;
 mod parameters;

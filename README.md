@@ -70,8 +70,7 @@ fn main() {
 
 ## TODO
 
-* [ ] support cookies
-* [ ] support examples
+* [ ] support examples on MediaType or Parameter (examples supported on types via `JsonSchema` macro)
 * [ ] support inferring schemas of parameters from function definitions
 * [ ] support for renaming or changing paths to okapi/schemars/okapi-operations in macro
 * [ ] more examples

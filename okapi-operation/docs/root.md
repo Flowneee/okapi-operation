@@ -10,6 +10,7 @@
       - [Header](#header)
       - [Query](#query)
       - [Path](#path)
+      - [Cookie](#cookie)
       - [Reference](#reference)
     + [Multiple parameters](#multiple-parameters)
     + [Request body](#request-body)
@@ -241,6 +242,36 @@ Unlike header and query parameters, all path parameters is mandatory.
             description = "ID of user",
             deprecated = false,
             style = "simple",
+            schema = "std::string::String",
+        )
+    )
+)]
+async fn handler() {}
+```
+
+#### Cookie
+
+`cookie` have following attributes:
+
+* name (string, mandatory);
+* description (string, optional);
+* required (bool, optional);
+* deprecated (bool, optional);
+* explode (bool, optional) - specifies whether arrays and objects should generate separate parameters for each array item or object property;
+* allow_empty_value (bool, optional) - allow empty value for this parameter;
+* schema (path, mandatory) - path to type of parameter.
+
+```rust,compile
+# use okapi_operation::*;
+#[openapi(
+    parameters(
+        cookie(
+            name = "session_id",
+            description = "Session ID",
+            required = false,
+            deprecated = false,
+            explode = true,
+            allow_empty_value = false,
             schema = "std::string::String",
         )
     )
@@ -600,8 +631,7 @@ assert!(generate_openapi_specification().is_ok());
 
 ## TODO
 
-* [ ] support cookies
-* [ ] support examples
+* [ ] support examples on MediaType or Parameter (examples supported on types via `JsonSchema` macro)
 * [ ] support inferring schemas of parameters from function definitions
 * [ ] support for renaming or changing paths to okapi/schemars/okapi-operations in macro
 * [ ] more examples
