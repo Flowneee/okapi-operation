@@ -27,6 +27,17 @@ impl OpenApiBuilder {
         }
     }
 
+    /// Alter default [`Components`].
+    ///
+    /// ## NOTE
+    ///
+    /// This will override existing components in builder. use this before adding anything to
+    /// the builder.
+    pub fn set_components(&mut self, new_components: Components) -> &mut Self {
+        self.components = new_components;
+        self
+    }
+
     /// Set OpenAPI version (should be 3.0.x).
     pub fn set_openapi_version(&mut self, version: String) -> &mut Self {
         self.spec.openapi = version;

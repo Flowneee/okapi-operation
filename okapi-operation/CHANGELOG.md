@@ -3,6 +3,12 @@ All notable changes to this project will be documented in the changelog of the r
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
 
+## [0.1.3] - 2023-02-15
+### Added
+ - `ComponentesBuilder`. It allows to customize components storage (schemas/security/...), for exmple disable subschemas inlining which could help when you have multiple types with same name (otherwise they will override each other in generated spec);
+ - Method `OpenApiBuilder::set_components` for customizing `Components`.
+
+
 ## [0.1.2] - 2022-08-06
 ### Added
  - Cookie parameters.

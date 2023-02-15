@@ -6,6 +6,45 @@ use okapi::{
     },
 };
 
+/// Builder for [`Components`]
+pub struct ComponentsBuilder {
+    components: okapi::openapi3::Components,
+    inline_subschemas: bool,
+}
+
+impl Default for ComponentsBuilder {
+    fn default() -> Self {
+        Self {
+            components: Default::default(),
+            inline_subschemas: false,
+        }
+    }
+}
+
+impl ComponentsBuilder {
+    pub fn okapi_components(mut self, components: okapi::openapi3::Components) -> Self {
+        self.components = components;
+        self
+    }
+
+    /// Enable or disable subschemas [inlining](https://docs.rs/schemars/latest/schemars/gen/struct.SchemaSettings.html#structfield.inline_subschemas).
+    ///
+    /// `false` by default.
+    pub fn inline_subschemas(mut self, inline_subschemas: bool) -> Self {
+        self.inline_subschemas = inline_subschemas;
+        self
+    }
+
+    pub fn build(self) -> Components {
+        let mut generator_settings = SchemaSettings::openapi3();
+        generator_settings.inline_subschemas = self.inline_subschemas;
+        Components {
+            generator: generator_settings.into_generator(),
+            components: self.components,
+        }
+    }
+}
+
 /// Storage for reusable components (schemas/parameters/responses/...).
 pub struct Components {
     generator: SchemaGenerator,
@@ -14,10 +53,9 @@ pub struct Components {
 
 impl Components {
     pub(crate) fn new(components: okapi::openapi3::Components) -> Self {
-        Self {
-            generator: SchemaSettings::openapi3().into_generator(),
-            components,
-        }
+        ComponentsBuilder::default()
+            .okapi_components(components)
+            .build()
     }
 
     /// Get schema for type.

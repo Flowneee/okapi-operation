@@ -16,7 +16,9 @@ pub use okapi_operation_macro::openapi;
 pub mod axum_integration;
 
 pub use self::{
-    builder::OpenApiBuilder, components::Components, to_media_types::ToMediaTypes,
+    builder::OpenApiBuilder,
+    components::{Components, ComponentsBuilder},
+    to_media_types::ToMediaTypes,
     to_responses::ToResponses,
 };
 
