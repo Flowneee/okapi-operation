@@ -12,6 +12,7 @@ pub struct ComponentsBuilder {
     inline_subschemas: bool,
 }
 
+#[allow(clippy::derivable_impls)]
 impl Default for ComponentsBuilder {
     fn default() -> Self {
         Self {
