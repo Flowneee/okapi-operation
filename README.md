@@ -66,7 +66,9 @@ fn main() {
 ## Features
 
 * `macro`: enables re-import of `#[openapi]` macro (enabled by default);
-* `axum-integration`: enables integration with `axum`(https://github.com/tokio-rs/axum) crate (implement traits for certain `axum` types).
+* `axum-integration`: enables integration with `axum`(https://github.com/tokio-rs/axum) crate (implement traits for certain `axum` types):
+  * Compatibility with `axum`: since integration heavely rely on `axum` types, this crate will be compatible only with few (maybe even one) last versions of `axum`;
+  * Currently supported `axum` versions: `0.6.x`.
 
 ## TODO
 

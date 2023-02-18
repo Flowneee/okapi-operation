@@ -1,13 +1,14 @@
 use std::{collections::HashMap, convert::Infallible, fmt};
 
 use axum::{
-    body::{Body, Bytes, HttpBody},
+    body::{Body, HttpBody},
+    handler::Handler,
     http::{Method, Request},
-    response::Response,
+    response::IntoResponse,
     routing::Route,
-    Extension, Router as AxumRouter,
+    Router as AxumRouter,
 };
-use tower::{BoxError, Layer, Service};
+use tower::{Layer, Service};
 
 use crate::OpenApiBuilder;
 
@@ -18,13 +19,17 @@ use super::{
 };
 
 /// Drop-in replacement for [`axum::Router`], which supports OpenAPI operations.
-pub struct Router<B = Body> {
-    axum_router: AxumRouter<B>,
+///
+/// This replacement cannot be used as [`Service`] instead require explicit
+/// convertion of this type to `axum::Router`. This is done to ensure that
+/// OpenAPI specification generated and mounted.
+pub struct Router<S = (), B = Body> {
+    axum_router: AxumRouter<S, B>,
     routes_operations_map: HashMap<String, MethodRouterOperations>,
 }
 
-impl<B> From<AxumRouter<B>> for Router<B> {
-    fn from(value: AxumRouter<B>) -> Self {
+impl<S, B> From<AxumRouter<S, B>> for Router<S, B> {
+    fn from(value: AxumRouter<S, B>) -> Self {
         Self {
             axum_router: value,
             routes_operations_map: Default::default(),
@@ -32,24 +37,29 @@ impl<B> From<AxumRouter<B>> for Router<B> {
     }
 }
 
-impl<B> Default for Router<B>
+impl<S, B> Default for Router<S, B>
 where
     B: HttpBody + Send + 'static,
+    S: Clone + Send + Sync + 'static,
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<B> fmt::Debug for Router<B> {
+impl<S, B> fmt::Debug for Router<S, B>
+where
+    S: fmt::Debug,
+{
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.axum_router.fmt(f)
     }
 }
 
-impl<B> Router<B>
+impl<S, B> Router<S, B>
 where
     B: HttpBody + Send + 'static,
+    S: Clone + Send + Sync + 'static,
 {
     /// Create new router.
     pub fn new() -> Self {
@@ -60,6 +70,8 @@ where
     }
 
     /// Add another route to the router.
+    ///
+    /// This method works for both [`MethodRouter`] and one from axum.
     ///
     /// For details see [`axum::Router::route`].
     ///
@@ -76,7 +88,11 @@ where
     /// # axum::Server::bind(&"".parse().unwrap()).serve(app.into_make_service()).await.unwrap();
     /// # };
     /// ```
-    pub fn route(mut self, path: &str, method_router: MethodRouter<B, Infallible>) -> Self {
+    pub fn route<R>(mut self, path: &str, method_router: R) -> Self
+    where
+        R: Into<MethodRouter<S, B>>,
+    {
+        let method_router = method_router.into();
         self.routes_operations_map
             .insert(path.into(), method_router.operations);
         Self {
@@ -87,21 +103,28 @@ where
         }
     }
 
-    /// Add another axum route to the router.
+    /// Add another route to the router that calls a [`Service`].
     ///
-    /// For details see [`axum::Router::route`].
-    pub fn route_axum<T>(self, path: &str, service: T) -> Self
+    /// For details see [`axum::Router::route_service`].
+    ///
+    /// # Example
+    ///
+    /// TODO
+    pub fn route_service<Svc>(self, path: &str, service: Svc) -> Self
     where
-        T: Service<Request<B>, Response = Response, Error = Infallible> + Clone + Send + 'static,
-        T::Future: Send + 'static,
+        Svc: Service<Request<B>, Error = Infallible> + Clone + Send + 'static,
+        Svc::Response: IntoResponse,
+        Svc::Future: Send + 'static,
     {
         Self {
-            axum_router: self.axum_router.route(path, service),
+            axum_router: self.axum_router.route_service(path, service),
             ..self
         }
     }
 
     /// Nest a router at some path.
+    ///
+    /// This method works for both [`Router`] and one from axum.
     ///
     /// For details see [`axum::Router::nest`].
     ///
@@ -118,7 +141,11 @@ where
     /// # axum::Server::bind(&"".parse().unwrap()).serve(app.into_make_service()).await.unwrap();
     /// # };
     /// ```
-    pub fn nest(mut self, path: &str, router: Self) -> Self {
+    pub fn nest<R>(mut self, path: &str, router: R) -> Self
+    where
+        R: Into<Router<S, B>>,
+    {
+        let router = router.into();
         for (inner_path, operation) in router.routes_operations_map.into_iter() {
             let _ = self
                 .routes_operations_map
@@ -130,21 +157,24 @@ where
         }
     }
 
-    /// Nest an [`axum::Router`] at some path.
+    /// Like `nest`, but accepts an arbitrary [`Service`].
     ///
-    /// For details see [`axum::Router::nest`].
-    pub fn nest_axum<T>(self, path: &str, svc: T) -> Self
+    /// For details see [`axum::Router::nest_service`].
+    pub fn nest_service<Svc>(self, path: &str, svc: Svc) -> Self
     where
-        T: Service<Request<B>, Response = Response, Error = Infallible> + Clone + Send + 'static,
-        T::Future: Send + 'static,
+        Svc: Service<Request<B>, Error = Infallible> + Clone + Send + 'static,
+        Svc::Response: IntoResponse,
+        Svc::Future: Send + 'static,
     {
         Self {
-            axum_router: self.axum_router.nest(path, svc),
+            axum_router: self.axum_router.nest_service(path, svc),
             ..self
         }
     }
 
     /// Merge two routers into one.
+    ///
+    /// This method works for both [`Router`] and one from axum.
     ///
     /// For details see [`axum::Router::merge`].
     ///
@@ -161,7 +191,11 @@ where
     /// # axum::Server::bind(&"".parse().unwrap()).serve(app.into_make_service()).await.unwrap();
     /// # };
     /// ```
-    pub fn merge(mut self, other: Router<B>) -> Self {
+    pub fn merge<R>(mut self, other: R) -> Self
+    where
+        R: Into<Router<S, B>>,
+    {
+        let other = other.into();
         self.routes_operations_map
             .extend(other.routes_operations_map);
         Self {
@@ -170,29 +204,17 @@ where
         }
     }
 
-    /// Merge current router and [`axum::Router`] into one.
-    ///
-    /// For details see [`axum::Router::merge`].
-    pub fn merge_axum(self, other: AxumRouter<B>) -> Self {
-        Self {
-            axum_router: self.axum_router.merge(other),
-            ..self
-        }
-    }
-
     /// Apply a [`tower::Layer`] to the router.
     ///
     /// For details see [`axum::Router::layer`].
-    pub fn layer<L, NewReqBody, NewResBody>(self, layer: L) -> Router<NewReqBody>
+    pub fn layer<L, NewReqBody, NewResBody>(self, layer: L) -> Router<S, NewReqBody>
     where
-        L: Layer<Route<B>>,
-        L::Service: Service<Request<NewReqBody>, Response = Response<NewResBody>, Error = Infallible>
-            + Clone
-            + Send
-            + 'static,
+        L: Layer<Route<B>> + Clone + Send + 'static,
+        L::Service: Service<Request<NewReqBody>> + Clone + Send + 'static,
+        <L::Service as Service<Request<NewReqBody>>>::Response: IntoResponse + 'static,
+        <L::Service as Service<Request<NewReqBody>>>::Error: Into<Infallible> + 'static,
         <L::Service as Service<Request<NewReqBody>>>::Future: Send + 'static,
-        NewResBody: HttpBody<Data = Bytes> + Send + 'static,
-        NewResBody::Error: Into<BoxError>,
+        NewReqBody: HttpBody + 'static,
     {
         Router {
             axum_router: self.axum_router.layer(layer),
@@ -205,14 +227,11 @@ where
     /// For details see [`axum::Router::route_layer`].
     pub fn route_layer<L, NewResBody>(self, layer: L) -> Self
     where
-        L: Layer<Route<B>>,
-        L::Service: Service<Request<B>, Response = Response<NewResBody>, Error = Infallible>
-            + Clone
-            + Send
-            + 'static,
+        L: Layer<Route<B>> + Clone + Send + 'static,
+        L::Service: Service<Request<B>> + Clone + Send + 'static,
+        <L::Service as Service<Request<B>>>::Response: IntoResponse + 'static,
+        <L::Service as Service<Request<B>>>::Error: Into<Infallible> + 'static,
         <L::Service as Service<Request<B>>>::Future: Send + 'static,
-        NewResBody: HttpBody<Data = Bytes> + Send + 'static,
-        NewResBody::Error: Into<BoxError>,
     {
         Router {
             axum_router: self.axum_router.route_layer(layer),
@@ -220,22 +239,56 @@ where
         }
     }
 
-    /// Add a fallback service to the router.
+    // TODO: somehow mount openapi doc from this handler
+    /// Add a fallback [`Service`] to the router.
     ///
-    /// For details see [`axum::Router::fallback`].
-    pub fn fallback<T>(self, svc: T) -> Self
+    /// For details see [`axum::Router::fallback_service`].
+    ///
+    /// # Note
+    ///
+    /// This method doesn't add anything to OpenaAPI spec.
+    pub fn fallback<H, T>(self, handler: H) -> Self
     where
-        T: Service<Request<B>, Response = Response, Error = Infallible> + Clone + Send + 'static,
-        T::Future: Send + 'static,
+        H: Handler<T, S, B>,
+        T: 'static,
     {
         Router {
-            axum_router: self.axum_router.fallback(svc),
+            axum_router: self.axum_router.fallback(handler),
             ..self
         }
     }
 
+    /// Add a fallback [`Service`] to the router.
+    ///
+    /// For details see [`axum::Router::fallback_service`].
+    ///
+    /// # Note
+    ///
+    /// This method doesn't add anything to OpenaAPI spec.
+    pub fn fallback_service<Svc>(self, svc: Svc) -> Self
+    where
+        Svc: Service<Request<B>, Error = Infallible> + Clone + Send + 'static,
+        Svc::Response: IntoResponse,
+        Svc::Future: Send + 'static,
+    {
+        Router {
+            axum_router: self.axum_router.fallback_service(svc),
+            ..self
+        }
+    }
+
+    /// Provide the state for the router.
+    ///
+    /// For details see [`axum::Router::with_state`].
+    pub fn with_state<S2>(self, state: S) -> Router<S2, B> {
+        Router {
+            axum_router: self.axum_router.with_state(state),
+            routes_operations_map: self.routes_operations_map,
+        }
+    }
+
     /// Separate router into [`axum::Router`] and list of operations.
-    pub fn into_parts(self) -> (AxumRouter<B>, RoutesOperations) {
+    pub fn into_parts(self) -> (AxumRouter<S, B>, RoutesOperations) {
         (
             self.axum_router,
             RoutesOperations::new(self.routes_operations_map),
@@ -243,7 +296,7 @@ where
     }
 
     /// Get inner [`axum::Router`].
-    pub fn axum_router(&self) -> AxumRouter<B> {
+    pub fn axum_router(&self) -> AxumRouter<S, B> {
         self.axum_router.clone()
     }
 
@@ -252,6 +305,7 @@ where
         RoutesOperations::new(self.routes_operations_map.clone())
     }
 
+    // TODO: refactor, I don't like this API
     /// Generate OpenAPI specification, mount it to inner router and return [`axum::Router`].
     ///
     /// This method is just for convenience and should be used after all routes mounted to root router.
@@ -274,7 +328,7 @@ where
         mut self,
         path: &str,
         mut openapi_builder: OpenApiBuilder,
-    ) -> Result<AxumRouter<B>, anyhow::Error> {
+    ) -> Result<AxumRouter<S, B>, anyhow::Error> {
         let mut routes = self.routes_operations().openapi_operation_generators();
         let _ = routes.insert(
             (path.to_string(), Method::GET),
@@ -283,10 +337,7 @@ where
         let spec = openapi_builder
             .add_operations(routes.into_iter().map(|((x, y), z)| (x, y, z)))?
             .generate_spec()?;
-        self = self.route(
-            path,
-            get(super::serve_openapi_spec).route_layer(Extension(spec)),
-        );
+        self = self.route(path, get(super::serve_openapi_spec).with_state(spec));
         Ok(self.axum_router)
     }
 }
@@ -307,12 +358,12 @@ mod tests {
     }
 
     #[test]
-    fn mount_axum() {
+    fn mount_axum_types() {
         let axum_router = AxumRouter::new().route("/get", axum_get(|| async {}));
         let (app, meta) = Router::new()
-            .route_axum("/", axum_get(|| async {}))
-            .nest_axum("/nested", axum_router.clone())
-            .merge_axum(axum_router)
+            .route("/", axum_get(|| async {}))
+            .nest("/nested", axum_router.clone())
+            .merge(axum_router)
             .into_parts();
         assert!(meta.0.is_empty());
         let make_service = app.into_make_service();

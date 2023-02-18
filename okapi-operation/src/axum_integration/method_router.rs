@@ -1,13 +1,12 @@
 use std::{collections::HashMap, convert::Infallible, fmt};
 
 use axum::{
-    body::{Body, Bytes, HttpBody},
+    body::{Body, HttpBody},
     error_handling::HandleError,
     handler::Handler,
     http::{Method, Request},
-    response::Response,
+    response::IntoResponse,
     routing::{MethodFilter, MethodRouter as AxumMethodRouter, Route},
-    BoxError,
 };
 use tower::{Layer, Service};
 
@@ -20,13 +19,14 @@ macro_rules! top_level_service_fn {
         $name:ident, $method:ident
     ) => {
         $(#[$m])*
-        pub fn $name<I, S, ReqBody, ResBody>(svc: I) -> MethodRouter<ReqBody, S::Error>
+        pub fn $name<I, Svc, S, B, E>(svc: I) -> MethodRouter<S, B, E>
         where
-            I: Into<ServiceWithOperation<S, ReqBody, ResBody, S::Error>>,
-            S: Service<Request<ReqBody>, Response = Response<ResBody>> + Clone + Send + 'static,
-            S::Future: Send + 'static,
-            ResBody: HttpBody<Data = Bytes> + Send + 'static,
-            ResBody::Error: Into<BoxError>,
+            I: Into<ServiceWithOperation<Svc, B, E>>,
+            Svc: Service<Request<B>, Error = E> + Clone + Send + 'static,
+            Svc::Response: IntoResponse + 'static,
+            Svc::Future: Send + 'static,
+            B: HttpBody + Send + 'static,
+            S: Clone,
         {
             on_service(MethodFilter::$method, svc)
         }
@@ -39,40 +39,39 @@ macro_rules! top_level_handler_fn {
         $name:ident, $method:ident
     ) => {
         $(#[$m])*
-        pub fn $name<I, H, T, B>(handler: I) -> MethodRouter<B, Infallible>
+        pub fn $name<I, H, T, S, B>(handler: I) -> MethodRouter<S, B, Infallible>
         where
-            I: Into<HandlerWithOperation<H, T, B>>,
-            H: Handler<T, B>,
-            B: Send + 'static,
+            I: Into<HandlerWithOperation<H, T, S, B>>,
+            H: Handler<T, S, B>,
+            B: HttpBody + Send + 'static,
             T: 'static,
+            S: Clone + Send + Sync + 'static,
         {
             on(MethodFilter::$method, handler)
         }
     };
 }
 
+/// Macro for implementing service methods on [`MethodRouter`].
 macro_rules! chained_service_fn {
     (
         $(#[$m:meta])*
         $name:ident, $method:ident
     ) => {
         $(#[$m])*
-        pub fn $name<I, S, ResBody>(self, svc: I) -> Self
+        pub fn $name<I, Svc>(self, svc: I) -> Self
         where
-            I: Into<ServiceWithOperation<S, ReqBody, ResBody, E>>,
-            S: Service<Request<ReqBody>, Response = Response<ResBody>, Error = E>
-                + Clone
-                + Send
-                + 'static,
-            S::Future: Send + 'static,
-            ResBody: HttpBody<Data = Bytes> + Send + 'static,
-            ResBody::Error: Into<BoxError>,
+            I: Into<ServiceWithOperation<Svc, B, E>>,
+            Svc: Service<Request<B>, Error = E> + Clone + Send + 'static,
+            Svc::Response: IntoResponse + 'static,
+            Svc::Future: Send + 'static,
         {
             self.on_service(MethodFilter::$method, svc)
         }
     };
 }
 
+/// Macro for implementing handler methods on [`MethodRouter`].
 macro_rules! chained_handler_fn {
     (
         $(#[$m:meta])*
@@ -81,25 +80,25 @@ macro_rules! chained_handler_fn {
         $(#[$m])*
         pub fn $name<I, H, T>(self, handler: I) -> Self
         where
-            I: Into<HandlerWithOperation<H, T, B>>,
-            H: Handler<T, B>,
+            I: Into<HandlerWithOperation<H, T, S, B>>,
+            H: Handler<T, S, B>,
             T: 'static,
+            S: Send + Sync + 'static
         {
             self.on(MethodFilter::$method, handler)
         }
     };
 }
 
-pub fn on_service<I, S, ReqBody, ResBody>(
-    filter: MethodFilter,
-    svc: I,
-) -> MethodRouter<ReqBody, S::Error>
+// TODO: check whether E generic parameter is redundant
+pub fn on_service<I, Svc, S, B, E>(filter: MethodFilter, svc: I) -> MethodRouter<S, B, E>
 where
-    I: Into<ServiceWithOperation<S, ReqBody, ResBody, S::Error>>,
-    S: Service<Request<ReqBody>, Response = Response<ResBody>> + Clone + Send + 'static,
-    S::Future: Send + 'static,
-    ResBody: HttpBody<Data = Bytes> + Send + 'static,
-    ResBody::Error: Into<BoxError>,
+    I: Into<ServiceWithOperation<Svc, B, E>>,
+    Svc: Service<Request<B>, Error = E> + Clone + Send + 'static,
+    Svc::Response: IntoResponse + 'static,
+    Svc::Future: Send + 'static,
+    B: HttpBody + Send + 'static,
+    S: Clone,
 {
     MethodRouter::new().on_service(filter, svc)
 }
@@ -113,12 +112,13 @@ top_level_service_fn!(post_service, POST);
 top_level_service_fn!(put_service, PUT);
 top_level_service_fn!(trace_service, TRACE);
 
-pub fn on<I, H, T, B>(filter: MethodFilter, handler: I) -> MethodRouter<B, Infallible>
+pub fn on<I, H, T, S, B>(filter: MethodFilter, handler: I) -> MethodRouter<S, B, Infallible>
 where
-    I: Into<HandlerWithOperation<H, T, B>>,
-    H: Handler<T, B>,
-    B: Send + 'static,
+    I: Into<HandlerWithOperation<H, T, S, B>>,
+    H: Handler<T, S, B>,
+    B: HttpBody + Send + 'static,
     T: 'static,
+    S: Clone + Send + Sync + 'static,
 {
     MethodRouter::new().on(filter, handler)
 }
@@ -262,50 +262,49 @@ impl MethodRouterOperations {
     }
 }
 
-/// Drop-in replacement for [`axum::routing::MethodRouter`], which supports OpenAPI operations.
-pub struct MethodRouter<B = Body, E = Infallible> {
-    pub(super) axum_method_router: AxumMethodRouter<B, E>,
+/// Drop-in replacement for [`axum::routing::MethodRouter`], which supports
+/// OpenAPI definitions of handlers or services.
+pub struct MethodRouter<S = (), B = Body, E = Infallible> {
+    pub(super) axum_method_router: AxumMethodRouter<S, B, E>,
     pub(super) operations: MethodRouterOperations,
 }
 
-impl<B, E> fmt::Debug for MethodRouter<B, E> {
+impl<S, B, E> fmt::Debug for MethodRouter<S, B, E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.axum_method_router.fmt(f)
     }
 }
 
-impl<B, E> Default for MethodRouter<B, E>
+impl<S, B, E> Default for MethodRouter<S, B, E>
 where
-    B: Send + 'static,
+    S: Clone,
+    B: HttpBody + Send + 'static,
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<B, E> MethodRouter<B, E> {
-    pub fn new() -> Self {
+impl<S, B, E> From<AxumMethodRouter<S, B, E>> for MethodRouter<S, B, E> {
+    fn from(value: AxumMethodRouter<S, B, E>) -> Self {
         Self {
-            axum_method_router: AxumMethodRouter::new(),
+            axum_method_router: value,
             operations: Default::default(),
         }
     }
-
-    /// Convert method router into [`axum::routing::MethodRouter`], dropping OpenAPI operations.
-    pub fn into_axum(self) -> AxumMethodRouter<B, E> {
-        self.axum_method_router
-    }
 }
 
-impl<B> MethodRouter<B, Infallible>
+impl<S, B> MethodRouter<S, B, Infallible>
 where
-    B: Send + 'static,
+    S: Clone,
+    B: HttpBody + Send + 'static,
 {
     pub fn on<I, H, T>(self, filter: MethodFilter, handler: I) -> Self
     where
-        I: Into<HandlerWithOperation<H, T, B>>,
-        H: Handler<T, B>,
+        I: Into<HandlerWithOperation<H, T, S, B>>,
+        H: Handler<T, S, B>,
         T: 'static,
+        S: Send + Sync + 'static,
     {
         let HandlerWithOperation {
             handler, operation, ..
@@ -325,19 +324,43 @@ where
     chained_handler_fn!(post, POST);
     chained_handler_fn!(put, PUT);
     chained_handler_fn!(trace, TRACE);
+
+    pub fn fallback<H, T>(self, handler: H) -> Self
+    where
+        H: Handler<T, S, B>,
+        T: 'static,
+        S: Send + Sync + 'static,
+    {
+        Self {
+            axum_method_router: self.axum_method_router.fallback(handler),
+            ..self
+        }
+    }
 }
 
-impl<ReqBody, E> MethodRouter<ReqBody, E> {
-    pub fn on_service<I, S, ResBody>(self, filter: MethodFilter, svc: I) -> Self
+impl<S, B, E> MethodRouter<S, B, E>
+where
+    S: Clone,
+    B: HttpBody + Send + 'static,
+{
+    pub fn new() -> Self {
+        Self {
+            axum_method_router: AxumMethodRouter::new(),
+            operations: Default::default(),
+        }
+    }
+
+    /// Convert method router into [`axum::routing::MethodRouter`], dropping related OpenAPI definitions.
+    pub fn into_axum(self) -> AxumMethodRouter<S, B, E> {
+        self.axum_method_router
+    }
+
+    pub fn on_service<I, Svc>(self, filter: MethodFilter, svc: I) -> Self
     where
-        I: Into<ServiceWithOperation<S, ReqBody, ResBody, E>>,
-        S: Service<Request<ReqBody>, Response = Response<ResBody>, Error = E>
-            + Clone
-            + Send
-            + 'static,
-        S::Future: Send + 'static,
-        ResBody: HttpBody<Data = Bytes> + Send + 'static,
-        ResBody::Error: Into<BoxError>,
+        I: Into<ServiceWithOperation<Svc, B, E>>,
+        Svc: Service<Request<B>, Error = E> + Clone + Send + 'static,
+        Svc::Response: IntoResponse + 'static,
+        Svc::Future: Send + 'static,
     {
         let ServiceWithOperation {
             service, operation, ..
@@ -357,41 +380,29 @@ impl<ReqBody, E> MethodRouter<ReqBody, E> {
     chained_service_fn!(put_service, PUT);
     chained_service_fn!(trace_service, TRACE);
 
-    /// Установка обработчика для методов, для которых не был найден обработчик.
-    ///
-    /// См. описание и примеры в [`AxumMethodRouter::fallback`].
-    pub fn fallback<S, ResBody>(self, svc: S) -> Self
+    pub fn fallback_service<Svc>(self, svc: Svc) -> Self
     where
-        S: Service<Request<ReqBody>, Response = Response<ResBody>, Error = E>
-            + Clone
-            + Send
-            + 'static,
-        S::Future: Send + 'static,
-        ResBody: HttpBody<Data = Bytes> + Send + 'static,
-        ResBody::Error: Into<BoxError>,
+        Svc: Service<Request<B>, Error = E> + Clone + Send + 'static,
+        Svc::Response: IntoResponse + 'static,
+        Svc::Future: Send + 'static,
     {
         Self {
-            axum_method_router: self.axum_method_router.fallback(svc),
+            axum_method_router: self.axum_method_router.fallback_service(svc),
             ..self
         }
     }
 
-    /// Добавление [`Layer`] к текущему роуту.
-    ///
-    /// См. описание и примеры в [`AxumMethodRouter::layer`].
-    pub fn layer<L, NewReqBody, NewResBody, NewError>(
-        self,
-        layer: L,
-    ) -> MethodRouter<NewReqBody, NewError>
+    pub fn layer<L, NewReqBody, NewError>(self, layer: L) -> MethodRouter<S, NewReqBody, NewError>
     where
-        L: Layer<Route<ReqBody, E>>,
-        L::Service: Service<Request<NewReqBody>, Response = Response<NewResBody>, Error = NewError>
-            + Clone
-            + Send
-            + 'static,
+        L: Layer<Route<B, E>> + Clone + Send + 'static,
+        L::Service: Service<Request<NewReqBody>> + Clone + Send + 'static,
+        <L::Service as Service<Request<NewReqBody>>>::Response: IntoResponse + 'static,
+        <L::Service as Service<Request<NewReqBody>>>::Error: Into<NewError> + 'static,
         <L::Service as Service<Request<NewReqBody>>>::Future: Send + 'static,
-        NewResBody: HttpBody<Data = Bytes> + Send + 'static,
-        NewResBody::Error: Into<BoxError>,
+        E: 'static,
+        S: 'static,
+        NewReqBody: HttpBody + 'static,
+        NewError: 'static,
     {
         MethodRouter {
             axum_method_router: self.axum_method_router.layer(layer),
@@ -399,21 +410,14 @@ impl<ReqBody, E> MethodRouter<ReqBody, E> {
         }
     }
 
-    /// Добавление [`Layer`] к текущему роуту.
-    ///
-    /// В отличии от [`MethodRouter::layer`], `layer` применяется только если удалось сматчить метод.
-    ///
-    /// См. описание и примеры в [`AxumMethodRouter::route_layer`].
-    pub fn route_layer<L, NewResBody>(self, layer: L) -> MethodRouter<ReqBody, E>
+    pub fn route_layer<L, NewResBody>(self, layer: L) -> MethodRouter<S, B, E>
     where
-        L: Layer<Route<ReqBody, E>>,
-        L::Service: Service<Request<ReqBody>, Response = Response<NewResBody>, Error = E>
-            + Clone
-            + Send
-            + 'static,
-        <L::Service as Service<Request<ReqBody>>>::Future: Send + 'static,
-        NewResBody: HttpBody<Data = Bytes> + Send + 'static,
-        NewResBody::Error: Into<BoxError>,
+        L: Layer<Route<B, E>> + Clone + Send + 'static,
+        L::Service: Service<Request<B>, Error = E> + Clone + Send + 'static,
+        <L::Service as Service<Request<B>>>::Response: IntoResponse + 'static,
+        <L::Service as Service<Request<B>>>::Future: Send + 'static,
+        E: 'static,
+        S: 'static,
     {
         MethodRouter {
             axum_method_router: self.axum_method_router.route_layer(layer),
@@ -421,31 +425,33 @@ impl<ReqBody, E> MethodRouter<ReqBody, E> {
         }
     }
 
-    /// Слияние 2 `MethodRouter`.
-    ///
-    /// См. пример в [`AxumMethodRouter::merge`].
-    pub fn merge(self, other: MethodRouter<ReqBody, E>) -> Self {
+    pub fn merge(self, other: MethodRouter<S, B, E>) -> Self {
         MethodRouter {
             axum_method_router: self.axum_method_router.merge(other.axum_method_router),
             operations: self.operations.merge(other.operations),
         }
     }
 
-    /// Применение [`axum::error_handling::HandleErrorLayer`].
-    ///
-    /// См. пример в [`AxumMethodRouter::handle_error`].
-    pub fn handle_error<F, T>(self, f: F) -> MethodRouter<ReqBody, Infallible>
+    pub fn handle_error<F, T>(self, f: F) -> MethodRouter<S, B, Infallible>
     where
-        F: Clone + Send + 'static,
-        HandleError<Route<ReqBody, E>, F, T>:
-            Service<Request<ReqBody>, Response = Response, Error = Infallible>,
-        <HandleError<Route<ReqBody, E>, F, T> as Service<Request<ReqBody>>>::Future: Send,
+        F: Clone + Send + Sync + 'static,
+        HandleError<Route<B, E>, F, T>: Service<Request<B>, Error = Infallible>,
+        <HandleError<Route<B, E>, F, T> as Service<Request<B>>>::Future: Send,
+        <HandleError<Route<B, E>, F, T> as Service<Request<B>>>::Response: IntoResponse + Send,
         T: 'static,
         E: 'static,
-        ReqBody: 'static,
+        B: 'static,
+        S: 'static,
     {
         MethodRouter {
             axum_method_router: self.axum_method_router.handle_error(f),
+            operations: self.operations,
+        }
+    }
+
+    pub fn with_state<S2>(self, state: S) -> MethodRouter<S2, B, E> {
+        MethodRouter {
+            axum_method_router: self.axum_method_router.with_state(state),
             operations: self.operations,
         }
     }

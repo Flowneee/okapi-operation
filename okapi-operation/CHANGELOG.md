@@ -3,6 +3,14 @@ All notable changes to this project will be documented in the changelog of the r
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
 
+## [Unreleased] - XXXX-XX-XX
+### Notable changes
+ - `axum` integration updated to be used with axum 0.6. Also this makes library unusable with older versions of `axum`.
+ 
+### Changed
+ - `axum` integration types updated to be used with axum 0.6.
+
+
 ## [0.1.3] - 2023-02-15
 ### Added
  - `ComponentesBuilder`. It allows to customize components storage (schemas/security/...), for exmple disable subschemas inlining which could help when you have multiple types with same name (otherwise they will override each other in generated spec);
