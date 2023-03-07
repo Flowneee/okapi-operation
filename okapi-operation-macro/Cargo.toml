@@ -22,5 +22,5 @@ syn = { version = "1", features = ["full"] }
 thiserror = "1"
 
 [dev-dependencies]
-axum = "0.5"
+axum = "0.6"
 okapi = { version = "0.7.0-rc.1", features = ["preserve_order"] }
