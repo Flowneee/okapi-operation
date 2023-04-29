@@ -3,7 +3,7 @@ All notable changes to this project will be documented in the changelog of the r
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
 
-## [Unreleased] - XXXX-XX-XX
+## [0.2.0] - 2023-04-29
 ### Notable changes
  - `axum` integration updated to be used with axum 0.6. Also this makes library unusable with older versions of `axum`.
  
