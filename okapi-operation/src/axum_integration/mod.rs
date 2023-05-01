@@ -9,15 +9,19 @@ pub use self::{
     router::Router,
 };
 
+mod axumyaml;
 mod handler_traits;
 mod method_router;
 mod operations;
 mod router;
 mod trait_impls;
 
+use axum::response::{IntoResponse, Response};
 use axum::{extract::State, Json};
+use http::{header, HeaderMap, HeaderValue, StatusCode};
 use okapi::openapi3::OpenApi;
 
+use crate::axum_integration::axumyaml::AxumYaml;
 use crate::*;
 
 /// Serves OpenAPI specification, passed as extension.
@@ -35,8 +39,21 @@ use crate::*;
         )
     )
 )]
-pub async fn serve_openapi_spec(spec: State<OpenApi>) -> Json<OpenApi> {
-    Json(spec.0)
+pub async fn serve_openapi_spec(spec: State<OpenApi>, headers: HeaderMap) -> Response {
+    match headers.get("Accept").and_then(|h| h.to_str().ok()) {
+        Some("yaml") => AxumYaml(spec.0).into_response(),
+        Some("json") => Json(spec.0).into_response(),
+        Some(_) => {
+            let status = StatusCode::BAD_REQUEST;
+            let headers = [(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("text/plain; charset=utf-8"),
+            )];
+            let err = format!("Bad Accept header value, should be [yaml|json]");
+            (status, headers, err).into_response()
+        }
+        None => Json(spec.0).into_response(),
+    }
 }
 
 /// Macro for expanding and binding OpenAPI operation specification
