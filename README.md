@@ -4,7 +4,8 @@
 [![docs.rs](https://img.shields.io/docsrs/okapi-operation/latest)](https://docs.rs/okapi-operation/latest)
 ![CI](https://github.com/Flowneee/okapi-operation/actions/workflows/ci.yml/badge.svg)
 
-Library which allow to generate OpenAPI's operation definitions (using types from `okapi` crate) with procedural macro `#[openapi]`.
+Library which allow to generate OpenAPI's operation definitions (using types from `okapi` crate) with procedural
+macro `#[openapi]`.
 
 ## Example (with axum-integration feature).
 
@@ -66,9 +67,13 @@ fn main() {
 ## Features
 
 * `macro`: enables re-import of `#[openapi]` macro (enabled by default);
-* `axum-integration`: enables integration with `axum`(https://github.com/tokio-rs/axum) crate (implement traits for certain `axum` types):
-  * Compatibility with `axum`: since integration heavely rely on `axum` types, this crate will be compatible only with few (maybe even one) last versions of `axum`;
-  * Currently supported `axum` versions: `0.6.x`.
+* `axum-integration`: enables integration with `axum`(https://github.com/tokio-rs/axum) crate (implement traits for
+  certain `axum` types):
+    * Compatibility with `axum`: since integration heavely rely on `axum` types, this crate will be compatible only with
+      few (maybe even one) last versions of `axum`;
+    * Currently supported `axum` versions: `0.6.x`.
+* `axum-yaml`: enables ability to serve the spec in yaml format in case of present `Accept` header with `yaml` value.
+  Otherwise, in case of values `json|*/*` or empty, `json`'s being served.
 
 ## TODO
 

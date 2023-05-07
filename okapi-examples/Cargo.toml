@@ -9,5 +9,5 @@ edition = "2021"
 axum = { version = "0.6", features = ["headers"] }
 tokio = { version = "1.28.0", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
-okapi-operation = { path = "../okapi-operation" }
+okapi-operation = { path = "../okapi-operation", features = ["default", "axum-yaml"] }
 okapi-operation-macro = { path = "../okapi-operation-macro" }
