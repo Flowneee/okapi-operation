@@ -9,7 +9,7 @@ pub use self::{
     router::Router,
 };
 
-#[cfg(feature = "axum-yaml")]
+#[cfg(feature = "yaml")]
 mod yaml;
 
 mod handler_traits;
@@ -20,7 +20,10 @@ mod trait_impls;
 
 use axum::response::{IntoResponse, Response};
 use axum::{extract::State, Json};
-use http::HeaderMap;
+use http::{
+    header::{self, ACCEPT},
+    HeaderMap, HeaderValue, StatusCode,
+};
 use okapi::openapi3::OpenApi;
 
 use crate::*;
@@ -41,15 +44,32 @@ use crate::*;
     )
 )]
 pub async fn serve_openapi_spec(spec: State<OpenApi>, headers: HeaderMap) -> Response {
-    match 1 {
-        #[cfg(feature = "axum-yaml")]
-        1 => yaml::axum_yaml_serve_spec(spec, headers).await,
-        _ => default_serve_spec(spec, headers).await,
+    match headers
+        .get(ACCEPT)
+        .and_then(|h| h.to_str().ok())
+        .map(|x| x.to_lowercase())
+        .as_deref()
+    {
+        #[cfg(feature = "yaml")]
+        Some("yaml") => self::yaml::Yaml(spec.0).into_response(),
+        Some("json" | "*/*" | "") | None => Json(spec.0).into_response(),
+        Some(_) => {
+            let status = StatusCode::BAD_REQUEST;
+            let headers = [(
+                header::CONTENT_TYPE,
+                HeaderValue::from_static("text/plain; charset=utf-8"),
+            )];
+            let err = format!(
+                "Bad Accept header value, should be either 'json', {}'*/*' or empty",
+                if cfg!(feature = "yaml") {
+                    "'yaml', "
+                } else {
+                    ""
+                }
+            );
+            (status, headers, err).into_response()
+        }
     }
-}
-
-async fn default_serve_spec(spec: State<OpenApi>, _headers: HeaderMap) -> Response {
-    Json(spec.0).into_response()
 }
 
 /// Macro for expanding and binding OpenAPI operation specification

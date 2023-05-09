@@ -35,7 +35,8 @@ default = ["macro", "axum-integration"]
 macro = ["okapi-operation-macro"]
 
 axum-integration = ["axum", "paste", "tower"]
-axum-yaml = ["serde_yaml", "axum-integration"]
+
+yaml = ["serde_yaml"]
 
 [package.metadata.docs.rs]
 all-features = true
