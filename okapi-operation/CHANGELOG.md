@@ -3,6 +3,11 @@ All notable changes to this project will be documented in the changelog of the r
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
 
+## [0.2.1] - 2023-05-09
+### Added
+ - Serving spec in different formats in `axum` integration using `Accept` header (JSON supported by default, YAML behind `yaml` feature).
+
+
 ## [0.2.0] - 2023-04-29
 ### Notable changes
  - `axum` integration updated to be used with axum 0.6. Also this makes library unusable with older versions of `axum`.
