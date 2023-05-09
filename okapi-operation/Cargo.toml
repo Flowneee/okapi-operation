@@ -18,11 +18,12 @@ http = "0.2"
 okapi = { version = "0.7.0-rc.1", features = ["preserve_order"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde_yaml = "0.8"
+bytes = "1.4.0"
 
 axum = { version = "0.6", optional = true }
 tower = { version = "0.4", default-features = false, optional = true }
 paste = { version = "1", optional = true }
+serde_yaml = { version = "0.8", optional = true }
 
 [dev-dependencies]
 axum = { version = "0.6", features = ["headers"] }
@@ -34,6 +35,8 @@ default = ["macro", "axum-integration"]
 macro = ["okapi-operation-macro"]
 
 axum-integration = ["axum", "paste", "tower"]
+
+yaml = ["serde_yaml"]
 
 [package.metadata.docs.rs]
 all-features = true
