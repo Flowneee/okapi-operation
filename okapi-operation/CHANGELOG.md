@@ -3,6 +3,13 @@ All notable changes to this project will be documented in the changelog of the r
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
 
+## [0.2.2] - 2023-08-30
+### Added
+ - Updating the router so that it supports middleware correctly. All that was
+done was the extra generic arguments were removed so they don't have to be
+listed anymore. This is to allow integration with the newest versions of axum
+0.6.x which don't have this generic argument any longer.
+
 ## [0.2.1] - 2023-05-09
 ### Added
  - Serving spec in different formats in `axum` integration using `Accept` header (JSON supported by default, YAML behind `yaml` feature).

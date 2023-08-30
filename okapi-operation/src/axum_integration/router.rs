@@ -207,7 +207,7 @@ where
     /// Apply a [`tower::Layer`] to the router.
     ///
     /// For details see [`axum::Router::layer`].
-    pub fn layer<L, NewReqBody, NewResBody>(self, layer: L) -> Router<S, NewReqBody>
+    pub fn layer<L, NewReqBody>(self, layer: L) -> Router<S, NewReqBody>
     where
         L: Layer<Route<B>> + Clone + Send + 'static,
         L::Service: Service<Request<NewReqBody>> + Clone + Send + 'static,
@@ -225,7 +225,7 @@ where
     /// Apply a [`tower::Layer`] to the router that will only run if the request matches a route.
     ///
     /// For details see [`axum::Router::route_layer`].
-    pub fn route_layer<L, NewResBody>(self, layer: L) -> Self
+    pub fn route_layer<L>(self, layer: L) -> Self
     where
         L: Layer<Route<B>> + Clone + Send + 'static,
         L::Service: Service<Request<B>> + Clone + Send + 'static,

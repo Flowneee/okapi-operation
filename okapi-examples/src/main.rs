@@ -1,9 +1,15 @@
-use axum::{extract::Query, Json};
+use axum::{
+    extract::Query,
+    http::Request,
+    middleware::{self, Next},
+    response::Response,
+    Json,
+};
 use okapi_operation::{axum_integration::*, *};
 use serde::Deserialize;
 
 #[derive(Deserialize, JsonSchema)]
-struct Request {
+struct RequestBody {
     /// Echo data
     data: String,
 }
@@ -18,7 +24,7 @@ struct Request {
         header(name = "Accept", schema = "std::string::String")
     )
 )]
-async fn echo_get(query: Query<Request>) -> Json<String> {
+async fn echo_get(query: Query<RequestBody>) -> Json<String> {
     Json(query.0.data)
 }
 
@@ -28,9 +34,13 @@ async fn echo_get(query: Query<Request>) -> Json<String> {
     tags = "echo"
 )]
 async fn echo_post(
-    #[request_body(description = "Echo data", required = true)] body: Json<Request>,
+    #[request_body(description = "Echo data", required = true)] body: Json<RequestBody>,
 ) -> Json<String> {
     Json(body.0.data)
+}
+
+async fn example_middleware<B>(request: Request<B>, next: Next<B>) -> Response {
+    next.run(request).await
 }
 
 #[tokio::main]
@@ -41,6 +51,7 @@ async fn main() {
     let app = Router::new()
         .route("/echo/get", get(openapi_handler!(echo_get)))
         .route("/echo/post", post(openapi_handler!(echo_post)))
+        .route_layer(middleware::from_fn(example_middleware))
         .route_openapi_specification("/openapi", oas_builder)
         .expect("no problem");
 
