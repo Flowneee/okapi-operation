@@ -93,8 +93,11 @@ where
         R: Into<MethodRouter<S, B>>,
     {
         let method_router = method_router.into();
-        self.routes_operations_map
-            .insert(path.into(), method_router.operations);
+
+        // Merge operations
+        let s = self.routes_operations_map.entry(path.into()).or_default();
+        *s = s.clone().merge(method_router.operations);
+
         Self {
             axum_router: self
                 .axum_router
@@ -349,7 +352,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        axum_integration::{get, HandlerExt},
+        axum_integration::{get, post, HandlerExt},
         Components,
     };
 
@@ -389,6 +392,14 @@ mod tests {
             .route("/", get(|| async {}))
             .nest("/nested", router)
             .merge(router2)
+            .route(
+                "/my_path",
+                get((|| async {}).with_openapi(openapi_generator)),
+            )
+            .route(
+                "/my_path",
+                post((|| async {}).with_openapi(openapi_generator)),
+            )
             .into_parts();
 
         assert!(ops.get_path("/").is_none());
@@ -401,6 +412,10 @@ mod tests {
         assert!(ops.get_path("/nested/get_with_spec").is_some());
         assert!(ops.get("/nested/get_with_spec", &Method::GET).is_some());
         assert!(ops.get("/nested/get_with_spec", &Method::POST).is_none());
+        assert!(ops.get("/nested/get_with_spec", &Method::POST).is_none());
+
+        assert!(ops.get("/my_path", &Method::GET).is_some());
+        assert!(ops.get("/my_path", &Method::POST).is_some());
 
         let make_service = app.into_make_service();
         let _ = async move {

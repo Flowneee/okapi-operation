@@ -173,7 +173,7 @@ impl MethodRouterOperations {
         self
     }
 
-    fn merge(self, other: Self) -> Self {
+    pub(super) fn merge(self, other: Self) -> Self {
         macro_rules! merge {
             ( $first:ident, $second:ident ) => {
                 match ($first, $second) {
