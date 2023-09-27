@@ -24,7 +24,6 @@ async fn echo_get(query: Query<Request>) -> Json<String> {
 
 #[openapi(
     summary = "Echo using POST request",
-    operation_id = "echo_post",
     tags = "echo"
 )]
 async fn echo_post(

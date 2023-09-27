@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+use anyhow::anyhow;
 use http::Method;
 use okapi::openapi3::{Info, OpenApi, SecurityRequirement, SecurityScheme};
 
@@ -7,6 +9,8 @@ use crate::{components::Components, utils::convert_axum_path_to_openapi, Operati
 pub struct OpenApiBuilder {
     spec: OpenApi,
     components: Components,
+    // To validate operation ids
+    known_operation_ids: HashSet<String>,
 }
 
 impl OpenApiBuilder {
@@ -24,6 +28,7 @@ impl OpenApiBuilder {
         Self {
             spec,
             components: Components::new(Default::default()),
+            known_operation_ids: Default::default(),
         }
     }
 
@@ -78,6 +83,15 @@ impl OpenApiBuilder {
         generator: OperationGenerator,
     ) -> Result<&mut Self, anyhow::Error> {
         let operation_schema = generator(&mut self.components)?;
+
+        // Check operation id doesn't exists
+        if let Some(operation_id) = operation_schema.operation_id.as_ref() {
+            if self.known_operation_ids.contains(operation_id) {
+                return Err(anyhow!("Found duplicate operation_id {operation_id}."));
+            }
+            self.known_operation_ids.insert(operation_id.clone());
+        }
+
         let path = self.spec.paths.entry(path.into()).or_default();
         if method == Method::DELETE {
             path.delete = Some(operation_schema);

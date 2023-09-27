@@ -92,6 +92,9 @@ pub(crate) fn openapi(mut attrs: AttributeArgs, mut input: ItemFn) -> Result<Tok
         attrs.extend(attribute_to_args(&attr)?);
     }
     let mut operation_attrs = OperationAttrs::from_list(&attrs)?;
+    if operation_attrs.operation_id.is_none() {
+        operation_attrs.operation_id = Some(input.sig.ident.to_string());
+    }
     operation_attrs
         .responses
         .add_return_type(&input, operation_attrs.responses.ignore_return_type);
