@@ -44,30 +44,31 @@ use crate::*;
     )
 )]
 pub async fn serve_openapi_spec(spec: State<OpenApi>, headers: HeaderMap) -> Response {
-    match headers
+    let accept_header = headers
         .get(ACCEPT)
         .and_then(|h| h.to_str().ok())
-        .map(|x| x.to_lowercase())
-        .as_deref()
-    {
+        .map(|h| h.to_ascii_lowercase());
+
+    match accept_header {
         #[cfg(feature = "yaml")]
-        Some("yaml") => self::yaml::Yaml(spec.0).into_response(),
-        Some("json" | "*/*" | "") | None => Json(spec.0).into_response(),
+        Some(accept_header) if accept_header.contains("yaml") => yaml::Yaml(spec.0).into_response(),
+        Some(accept_header) if accept_header.contains("json") => Json(spec.0).into_response(),
         Some(_) => {
             let status = StatusCode::BAD_REQUEST;
             let headers = [(
                 header::CONTENT_TYPE,
                 HeaderValue::from_static("text/plain; charset=utf-8"),
             )];
-            let err = format!(
-                "Bad Accept header value, should be either 'json', {}'*/*' or empty",
-                if cfg!(feature = "yaml") {
-                    "'yaml', "
-                } else {
-                    ""
-                }
-            );
+            let err = if cfg!(feature = "yaml") {
+                "Bad Accept header value, should contain either 'json', 'yaml' or empty"
+            } else {
+                "Bad Accept header value, should contain either 'json' or empty"
+            };
             (status, headers, err).into_response()
+        }
+        None => {
+            // Defaults to json
+            Json(spec.0).into_response()
         }
     }
 }
