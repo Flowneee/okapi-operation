@@ -177,10 +177,13 @@ mod tests {
     use super::*;
     use crate::{
         axum_integration::{MethodRouter, Router},
-        Components,
+        Components, InternalBuilderOptions,
     };
 
-    fn openapi_generator(_: &mut Components) -> Result<Operation, anyhow::Error> {
+    fn openapi_generator(
+        _: &mut Components,
+        _: &InternalBuilderOptions,
+    ) -> Result<Operation, anyhow::Error> {
         unimplemented!()
     }
 
