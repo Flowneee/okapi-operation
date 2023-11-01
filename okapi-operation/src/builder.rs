@@ -1,7 +1,7 @@
-use std::collections::HashSet;
 use anyhow::anyhow;
 use http::Method;
 use okapi::openapi3::{Info, OpenApi, SecurityRequirement, SecurityScheme};
+use std::collections::HashSet;
 
 use crate::{components::Components, utils::convert_axum_path_to_openapi, OperationGenerator};
 
@@ -12,13 +12,13 @@ pub struct OpenApiBuilder {
     // To validate operation ids
     known_operation_ids: HashSet<String>,
 
-    builder_options: BuilderOptions
+    builder_options: BuilderOptions,
 }
 
 #[derive(Default)]
 pub struct BuilderOptions {
     // If true, infer the operation id from the method name
-    pub infer_operation_id: bool
+    pub infer_operation_id: bool,
 }
 
 impl BuilderOptions {

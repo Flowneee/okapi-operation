@@ -62,7 +62,7 @@ impl ToTokens for OperationAttrs {
             let operation_id = quote_option(&self.operation_id);
             let inferred_operation_id = &self.inferred_operation_id;
 
-            quote!{
+            quote! {
                 if (builder_options.infer_operation_id) {
                     #operation_id.or_else(|| Some(String::from(#inferred_operation_id)))
                 } else {

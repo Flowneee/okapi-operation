@@ -38,4 +38,5 @@ pub type Empty = ();
 
 // TODO: allow return RefOr<Operation>
 /// Operation generator signature.
-pub type OperationGenerator = fn(&mut Components, &InternalBuilderOptions) -> Result<Operation, anyhow::Error>;
+pub type OperationGenerator =
+    fn(&mut Components, &InternalBuilderOptions) -> Result<Operation, anyhow::Error>;
