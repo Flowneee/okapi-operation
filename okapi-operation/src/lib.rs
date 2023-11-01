@@ -22,6 +22,9 @@ pub use self::{
     to_responses::ToResponses,
 };
 
+// This is public to let macros access it
+pub use self::builder::BuilderOptions as InternalBuilderOptions;
+
 use okapi::openapi3::Operation;
 
 mod builder;
@@ -35,4 +38,4 @@ pub type Empty = ();
 
 // TODO: allow return RefOr<Operation>
 /// Operation generator signature.
-pub type OperationGenerator = fn(&mut Components) -> Result<Operation, anyhow::Error>;
+pub type OperationGenerator = fn(&mut Components, &InternalBuilderOptions) -> Result<Operation, anyhow::Error>;

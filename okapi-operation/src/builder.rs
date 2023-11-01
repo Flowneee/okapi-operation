@@ -5,12 +5,27 @@ use okapi::openapi3::{Info, OpenApi, SecurityRequirement, SecurityScheme};
 
 use crate::{components::Components, utils::convert_axum_path_to_openapi, OperationGenerator};
 
-/// OpenAPI specificatrion builder.
+/// OpenAPI specification builder.
 pub struct OpenApiBuilder {
     spec: OpenApi,
     components: Components,
     // To validate operation ids
     known_operation_ids: HashSet<String>,
+
+    builder_options: BuilderOptions
+}
+
+#[derive(Default)]
+pub struct BuilderOptions {
+    // If true, infer the operation id from the method name
+    pub infer_operation_id: bool
+}
+
+impl BuilderOptions {
+    // If true, infer the operation id from the method name
+    pub fn infer_operation_id(&self) -> bool {
+        self.infer_operation_id
+    }
 }
 
 impl OpenApiBuilder {
@@ -29,6 +44,7 @@ impl OpenApiBuilder {
             spec,
             components: Components::new(Default::default()),
             known_operation_ids: Default::default(),
+            builder_options: Default::default(),
         }
     }
 
@@ -75,6 +91,14 @@ impl OpenApiBuilder {
         self
     }
 
+    // Infer the operation id for every operation based on the function name.
+    //
+    // If the operation_id is specified in the macro, it will replace the inferred name.
+    pub fn infer_operation_id(&mut self) -> &mut Self {
+        self.builder_options.infer_operation_id = true;
+        self
+    }
+
     /// Add single operation.
     pub fn add_operation(
         &mut self,
@@ -82,7 +106,7 @@ impl OpenApiBuilder {
         method: Method,
         generator: OperationGenerator,
     ) -> Result<&mut Self, anyhow::Error> {
-        let operation_schema = generator(&mut self.components)?;
+        let operation_schema = generator(&mut self.components, &self.builder_options)?;
 
         // Check operation id doesn't exists
         if let Some(operation_id) = operation_schema.operation_id.as_ref() {

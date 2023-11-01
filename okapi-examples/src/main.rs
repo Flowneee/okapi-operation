@@ -10,7 +10,6 @@ struct Request {
 
 #[openapi(
     summary = "Echo using GET request",
-    operation_id = "echo_get",
     tags = "echo",
     parameters(
         query(name = "echo-data", required = true, schema = "std::string::String",),
@@ -22,10 +21,7 @@ async fn echo_get(query: Query<Request>) -> Json<String> {
     Json(query.0.data)
 }
 
-#[openapi(
-    summary = "Echo using POST request",
-    tags = "echo"
-)]
+#[openapi(summary = "Echo using POST request", tags = "echo")]
 async fn echo_post(
     #[request_body(description = "Echo data", required = true)] body: Json<Request>,
 ) -> Json<String> {
@@ -35,7 +31,10 @@ async fn echo_post(
 #[tokio::main]
 async fn main() {
     // Here you can also add security schemes, other operations, modify internal OpenApi object.
-    let oas_builder = OpenApiBuilder::new("Demo", "1.0.0");
+    let mut oas_builder = OpenApiBuilder::new("Demo", "1.0.0");
+
+    // Enable infer operation_id from function names.
+    oas_builder.infer_operation_id();
 
     let app = Router::new()
         .route("/echo/get", get(openapi_handler!(echo_get)))

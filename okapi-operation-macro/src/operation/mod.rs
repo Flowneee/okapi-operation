@@ -39,6 +39,8 @@ struct OperationAttrs {
     #[darling(default)]
     operation_id: Option<String>,
     #[darling(default)]
+    inferred_operation_id: String,
+    #[darling(default)]
     tags: Option<String>,
     #[darling(default)]
     deprecated: bool,
@@ -56,7 +58,18 @@ impl ToTokens for OperationAttrs {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let summary = quote_option(&self.summary);
         let description = quote_option(&self.description);
-        let operation_id = quote_option(&self.operation_id);
+        let operation_id = {
+            let operation_id = quote_option(&self.operation_id);
+            let inferred_operation_id = &self.inferred_operation_id;
+
+            quote!{
+                if (builder_options.infer_operation_id) {
+                    #operation_id.or_else(|| Some(String::from(#inferred_operation_id)))
+                } else {
+                    #operation_id
+                }
+            }
+        };
         let external_docs = quote_option(&self.external_docs);
         let deprecated = &self.deprecated;
         let tags = {
@@ -92,9 +105,7 @@ pub(crate) fn openapi(mut attrs: AttributeArgs, mut input: ItemFn) -> Result<Tok
         attrs.extend(attribute_to_args(&attr)?);
     }
     let mut operation_attrs = OperationAttrs::from_list(&attrs)?;
-    if operation_attrs.operation_id.is_none() {
-        operation_attrs.operation_id = Some(input.sig.ident.to_string());
-    }
+    operation_attrs.inferred_operation_id = input.sig.ident.to_string();
     operation_attrs
         .responses
         .add_return_type(&input, operation_attrs.responses.ignore_return_type);
@@ -128,7 +139,8 @@ fn build_openapi_generator_fn(
     let responses = &attrs.responses;
     quote! {
         #vis fn #name(
-            components: &mut Components
+            components: &mut Components,
+            builder_options: &InternalBuilderOptions
         ) -> std::result::Result<okapi::openapi3::Operation, anyhow::Error> {
             let mut operation = okapi::openapi3::Operation {
                 #attrs
