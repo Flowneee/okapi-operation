@@ -2,7 +2,7 @@
 All notable changes to this project will be documented in the changelog of the respective crates.
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
-## [Unreleased]
+## [0.2.2] - 2023-12-03
 ### Fixed
 - The `Accept` header parsing in the `axum` integration handler is more relaxed to allow content types such as `+json`, `+yaml`, `text/yaml`, etc.
 - Align the behavior of `Router::route` in the `axum` integration to merge routes with same path, rather than overwriting them.
