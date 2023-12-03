@@ -35,13 +35,10 @@ async fn echo_post(
 
 #[tokio::main]
 async fn main() {
-    // Here you can also add security schemes, other operations, modify internal OpenApi object.
-    let oas_builder = OpenApiBuilder::new("Demo", "1.0.0");
-
     let app = Router::new()
         .route("/echo/get", get(openapi_handler!(echo_get)))
         .route("/echo/post", post(openapi_handler!(echo_post)))
-        .route_openapi_specification("/openapi", oas_builder)
+        .finish_openapi("/openapi", "Demo", "1.0.0")
         .expect("no problem");
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();

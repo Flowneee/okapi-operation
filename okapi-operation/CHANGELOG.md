@@ -3,12 +3,35 @@ All notable changes to this project will be documented in the changelog of the r
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
 
-## [0.3.0 (Unreleased)] - 2023-12-03
+## [0.3.0-rc1] - 2023-12-03
 ### Notable changes
- - `axum` integration updated to be used with axum 0.7. Also this makes library unusable with older versions of `axum`.
+ - `axum` integration updated to be used with axum 0.7. Also this makes library unusable with older versions of `axum`;
+ - `OpenApiBuilder` rewritten, now providing more safe API to inner specification;
+ - Simplified usage of `axum-integration::Router` - it is now unnecessary to provide `OpenApiBuilder`.
+ 
+### Added
+ - New methods for `OpenApiBuilder` for setting variuos fields in inner specification;
+ - `OpenApiBuilder::build()` method for building specification (replaced `generate_spec()`);
+ - `OpenApiBuilder` inside `axum-integration::Router`, which allow to omit explicit vreation of builder;
+ - New methods in `axum-integration::Router`:
+   - `set_openapi_builder_template` - replace `OpenApiBuilder` inside `Router`;
+   - `update_openapi_builder_template` - update `OpenApiBuilder` inside `Router`;
+   - `openapi_builder_template_mut` - get mutable reference to `OpenApiBuilder` from `Router`;
+   - `generate_openapi_builder` - generate `OpenApiBuilder` from `Router`;
+   - (!) `finish_openapi` - builder OpenAPI specification, mount it to path and return `axum::Router` (replaces `route_openapi_specification` method).
 
 ### Changed
- - `axum` integration types updated to be used with axum 0.7.
+ - (breaking) `axum` integration types updated to be used with axum 0.7.
+
+### Removed
+ - (breaking) `set_openapi_version`, because underlying library compatible only with OpenAPI `3.0.x` (`x` is 0 to 3, changes between versions minor). Now generated specification always have OpenAPI version `3.0.0`;
+ - (breaking) Bunch of old methods from `OpenApiBuilder`;
+ - (breaking) `axum-integration::Router::route_openapi_specification()` (replaced by `finish_openapi` method).
+
+### Fixed
+ - (breaking) `OpenApiBuilder::add_operations` now use passed paths as is. Previously it converted it from `axum` format to OpenAPI, which could mess up integration with another framework. This change does not affect `axum` integration;
+ - (breaking) Feature `axum-integration` disabled by default, it was enabled by mistake previously;
+ - Minor documentation fixes.
  
  
 ## [0.2.2] - 2023-12-03

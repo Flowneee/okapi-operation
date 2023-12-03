@@ -28,7 +28,6 @@ mod builder;
 mod components;
 mod to_media_types;
 mod to_responses;
-mod utils;
 
 /// Empty type alias (for using in attribute values).
 pub type Empty = ();

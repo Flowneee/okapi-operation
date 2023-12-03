@@ -6,7 +6,7 @@ pub use paste::paste;
 pub use self::{
     handler_traits::{HandlerExt, HandlerWithOperation, ServiceExt, ServiceWithOperation},
     method_router::*,
-    router::Router,
+    router::{Router, DEFAULT_OPENAPI_PATH},
 };
 
 #[cfg(feature = "yaml")]
@@ -17,6 +17,7 @@ mod method_router;
 mod operations;
 mod router;
 mod trait_impls;
+mod utils;
 
 use axum::response::{IntoResponse, Response};
 use axum::{extract::State, Json};

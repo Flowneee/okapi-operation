@@ -1,7 +1,7 @@
 [package]
 name = "okapi-operation"
 description = "Procedural macro for generating OpenAPI operation specification (using okapi)"
-version = "0.3.0"
+version = "0.3.0-rc1"
 authors = ["Andrey Kononov flowneee3@gmail.com"]
 edition = "2021"
 license = "MIT"
@@ -28,11 +28,11 @@ serde_yaml = { version = "0.8", optional = true }
 [dev-dependencies]
 axum = "0.7"
 axum-extra = { version = "0.9", features = ["typed-header"] }
-tokio = "1"
+tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 
 [features]
-default = ["macro", "axum-integration"]
+default = ["macro"]
 
 macro = ["okapi-operation-macro"]
 

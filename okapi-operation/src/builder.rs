@@ -1,31 +1,42 @@
-use http::Method;
-use okapi::openapi3::{Info, OpenApi, SecurityRequirement, SecurityScheme};
+use std::collections::HashMap;
 
-use crate::{components::Components, utils::convert_axum_path_to_openapi, OperationGenerator};
+use anyhow::{bail, Context};
+use http::Method;
+use okapi::openapi3::{
+    Contact, ExternalDocs, License, OpenApi, SecurityRequirement, SecurityScheme, Server, Tag,
+};
+
+use crate::{components::Components, OperationGenerator};
 
 /// OpenAPI specificatrion builder.
 #[derive(Clone)]
 pub struct OpenApiBuilder {
     spec: OpenApi,
     components: Components,
+    operations: HashMap<(String, Method), OperationGenerator>,
 }
 
-impl OpenApiBuilder {
-    /// Create new builder with specified title and version.
-    pub fn new(title: &str, spec_version: &str) -> Self {
+impl Default for OpenApiBuilder {
+    fn default() -> Self {
         let spec = OpenApi {
             openapi: OpenApi::default_version(),
-            info: Info {
-                title: title.into(),
-                version: spec_version.into(),
-                ..Default::default()
-            },
             ..Default::default()
         };
         Self {
             spec,
             components: Components::new(Default::default()),
+            operations: HashMap::new(),
         }
+    }
+}
+
+impl OpenApiBuilder {
+    /// Create new builder with specified title and version
+    pub fn new(title: &str, version: &str) -> Self {
+        let mut this = Self::default();
+        this.title(title);
+        this.version(version);
+        this
     }
 
     /// Alter default [`Components`].
@@ -39,24 +50,83 @@ impl OpenApiBuilder {
         self
     }
 
-    /// Set OpenAPI version (should be 3.0.x).
-    pub fn set_openapi_version(&mut self, version: String) -> &mut Self {
-        self.spec.openapi = version;
+    /// Add single operation.
+    ///
+    /// Throws an error if (path, method) pair is already present.
+    pub fn try_operation<T>(
+        &mut self,
+        path: T,
+        method: Method,
+        generator: OperationGenerator,
+    ) -> Result<&mut Self, anyhow::Error>
+    where
+        T: Into<String>,
+    {
+        let path = path.into();
+        if self
+            .operations
+            .insert((path.clone(), method.clone()), generator)
+            .is_some()
+        {
+            bail!("{method} {path} is already present in specification");
+        };
+        Ok(self)
+    }
+
+    /// Add multiple operations.
+    ///
+    /// Throws an error if any (path, method) pair is already present.
+    pub fn try_operations<I, S>(&mut self, operations: I) -> Result<&mut Self, anyhow::Error>
+    where
+        I: Iterator<Item = (S, Method, OperationGenerator)>,
+        S: Into<String>,
+    {
+        for (path, method, f) in operations {
+            self.try_operation(path, method, f)?;
+        }
+        Ok(self)
+    }
+
+    /// Add single operation.
+    ///
+    /// Replaces operation if (path, method) pair is already present.
+    pub fn operation<T>(
+        &mut self,
+        path: T,
+        method: Method,
+        generator: OperationGenerator,
+    ) -> &mut Self
+    where
+        T: Into<String>,
+    {
+        let _ = self.try_operation(path, method, generator);
         self
     }
 
-    /// Access to inner [`okapi::openapi3::OpenApi`].
+    /// Add multiple operations.
+    ///
+    /// Replaces operation if (path, method) pair is already present.
+    pub fn operations<I, S>(&mut self, operations: I) -> &mut Self
+    where
+        I: Iterator<Item = (S, Method, OperationGenerator)>,
+        S: Into<String>,
+    {
+        for (path, method, f) in operations {
+            self.operation(path, method, f);
+        }
+        self
+    }
+
+    /// Access inner [`okapi::openapi3::OpenApi`].
+    ///
+    /// **Warning!** This allows raw access to underlying `OpenApi` object,
+    /// which might break generated specification.
+    ///
+    /// # NOTE
+    ///
+    /// Components are overwritten on building specification.
     pub fn spec_mut(&mut self) -> &mut OpenApi {
         &mut self.spec
-    }
-
-    /// Add security scheme definition.
-    pub fn add_security_def<N>(&mut self, name: N, sec: SecurityScheme) -> &mut Self
-    where
-        N: Into<String>,
-    {
-        self.components.add_security(name, sec);
-        self
     }
 
     /// Apply security scheme globally.
@@ -71,52 +141,128 @@ impl OpenApiBuilder {
         self
     }
 
-    /// Add single operation.
-    pub fn add_operation(
-        &mut self,
-        path: &str,
-        method: Method,
-        generator: OperationGenerator,
-    ) -> Result<&mut Self, anyhow::Error> {
-        let operation_schema = generator(&mut self.components)?;
-        let path = self.spec.paths.entry(path.into()).or_default();
-        if method == Method::DELETE {
-            path.delete = Some(operation_schema);
-        } else if method == Method::GET {
-            path.get = Some(operation_schema);
-        } else if method == Method::HEAD {
-            path.head = Some(operation_schema);
-        } else if method == Method::OPTIONS {
-            path.options = Some(operation_schema);
-        } else if method == Method::PATCH {
-            path.patch = Some(operation_schema);
-        } else if method == Method::POST {
-            path.post = Some(operation_schema);
-        } else if method == Method::PUT {
-            path.put = Some(operation_schema);
-        } else if method == Method::TRACE {
-            path.trace = Some(operation_schema);
-        } else {
-            return Err(anyhow::anyhow!("Unsupported method {}", method));
-        }
-        Ok(self)
-    }
-
-    /// Add multiple operations.
-    pub fn add_operations(
-        &mut self,
-        operations: impl Iterator<Item = (String, Method, OperationGenerator)>,
-    ) -> Result<&mut Self, anyhow::Error> {
-        for (path, method, f) in operations {
-            self.add_operation(&convert_axum_path_to_openapi(&path), method, f)?;
-        }
-        Ok(self)
-    }
-
     /// Generate [`okapi::openapi3::OpenApi`] specification.
-    pub fn generate_spec(&mut self) -> Result<OpenApi, anyhow::Error> {
+    ///
+    /// This method can be called repeatedly on the same object.
+    pub fn build(&mut self) -> Result<OpenApi, anyhow::Error> {
         let mut spec = self.spec.clone();
+
+        for ((path, method), generator) in &self.operations {
+            try_add_path(
+                &mut spec,
+                &mut self.components,
+                path,
+                method.clone(),
+                *generator,
+            )
+            .with_context(|| format!("Failed to add {method} {path}"))?;
+        }
+
         spec.components = Some(self.components.okapi_components()?);
+
         Ok(spec)
     }
+
+    // Helpers to set OpenApi info/servers/tags/... as is
+
+    /// Set specification title.
+    ///
+    /// Empty string by default.
+    pub fn title(&mut self, title: impl Into<String>) -> &mut Self {
+        self.spec.info.title = title.into();
+        self
+    }
+
+    /// Set specification version.
+    ///
+    /// Empty string by default.
+    pub fn version(&mut self, version: impl Into<String>) -> &mut Self {
+        self.spec.info.version = version.into();
+        self
+    }
+
+    /// Add description to specification.
+    pub fn description(&mut self, description: impl Into<String>) -> &mut Self {
+        self.spec.info.description = Some(description.into());
+        self
+    }
+
+    /// Add contact to specification.
+    pub fn contact(&mut self, contact: Contact) -> &mut Self {
+        self.spec.info.contact = Some(contact);
+        self
+    }
+
+    /// Add license to specification.
+    pub fn license(&mut self, license: License) -> &mut Self {
+        self.spec.info.license = Some(license);
+        self
+    }
+
+    /// Add terms_of_service to specification.
+    pub fn terms_of_service(&mut self, terms_of_service: impl Into<String>) -> &mut Self {
+        self.spec.info.terms_of_service = Some(terms_of_service.into());
+        self
+    }
+
+    /// Add server to specification.
+    pub fn server(&mut self, server: Server) -> &mut Self {
+        self.spec.servers.push(server);
+        self
+    }
+
+    /// Add tag to specification.
+    pub fn tag(&mut self, tag: Tag) -> &mut Self {
+        self.spec.tags.push(tag);
+        self
+    }
+
+    /// Set external documentation for specification.
+    pub fn external_docs(&mut self, docs: ExternalDocs) -> &mut Self {
+        let _ = self.spec.external_docs.insert(docs);
+        self
+    }
+
+    /// Add security scheme definition to specification.
+    pub fn security_scheme<N>(&mut self, name: N, sec: SecurityScheme) -> &mut Self
+    where
+        N: Into<String>,
+    {
+        self.components.add_security_scheme(name, sec);
+        self
+    }
+}
+
+fn try_add_path(
+    spec: &mut OpenApi,
+    components: &mut Components,
+    path: &str,
+    method: Method,
+    generator: OperationGenerator,
+) -> Result<(), anyhow::Error> {
+    let operation_schema = generator(components)?;
+    let path_str = path;
+    let path = spec.paths.entry(path.into()).or_default();
+    if method == Method::DELETE {
+        path.delete = Some(operation_schema);
+    } else if method == Method::GET {
+        path.get = Some(operation_schema);
+    } else if method == Method::HEAD {
+        path.head = Some(operation_schema);
+    } else if method == Method::OPTIONS {
+        path.options = Some(operation_schema);
+    } else if method == Method::PATCH {
+        path.patch = Some(operation_schema);
+    } else if method == Method::POST {
+        path.post = Some(operation_schema);
+    } else if method == Method::PUT {
+        path.put = Some(operation_schema);
+    } else if method == Method::TRACE {
+        path.trace = Some(operation_schema);
+    } else {
+        return Err(anyhow::anyhow!(
+            "Unsupported method {method} (at {path_str})"
+        ));
+    }
+    Ok(())
 }

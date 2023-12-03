@@ -163,6 +163,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::let_underscore_future)]
+
     use std::convert::Infallible;
 
     use axum::{
@@ -228,7 +230,6 @@ mod tests {
             .on_service(
                 MethodFilter::POST,
                 service2
-                    .clone()
                     .with_openapi(openapi_generator)
                     .with_openapi(openapi_generator),
             )

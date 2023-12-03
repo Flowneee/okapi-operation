@@ -9,7 +9,7 @@ macro `#[openapi]`.
 
 ## Example (with axum-integration feature).
 
-```rust,compile
+```rust,no_run
 use axum::{extract::Query, Json};
 use okapi_operation::{axum_integration::*, *};
 use serde::Deserialize;
@@ -45,22 +45,13 @@ async fn echo_post(
 }
 
 fn main() {
-    // Here you can also add security schemes, other operations, modify internal OpenApi object.
-    let oas_builder = OpenApiBuilder::new("Demo", "1.0.0");
-    
     let app = Router::new()
         .route("/echo/get", get(openapi_handler!(echo_get)))
         .route("/echo/post", post(openapi_handler!(echo_post)))
-        .route_openapi_specification("/openapi", oas_builder)
+        .finish_openapi("/openapi", "Demo", "1.0.0")
         .expect("no problem");
-
-    let fut = async {
-        axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
-            .serve(app.into_make_service())
-            .await
-            .unwrap();
-    };
-    //tokio::runtime::Runtime::new().block_on(fut);
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(listener, app.into_make_service()).await.unwrap()
 }
 ```
 
@@ -71,9 +62,9 @@ fn main() {
   certain `axum` types):
     * Compatibility with `axum`: since integration heavely rely on `axum` types, this crate will be compatible only with
       few (maybe even one) last versions of `axum`;
-    * Currently supported `axum` versions: `0.6.x`.
-* `axum-yaml`: enables ability to serve the spec in yaml format in case of present `Accept` header with `yaml` value.
-  Otherwise, in case of values `json|*/*` or empty, `json`'s being served.
+    * Currently supported `axum` versions: `0.7.x`.
+* `yaml`: enables ability to serve the spec in yaml format in case of present `Accept` header with `yaml` value.
+  Otherwise, in case of values `json|*/*` or empty, `json`'s being served (currently affects only `axum-integration`).
 
 ## TODO
 

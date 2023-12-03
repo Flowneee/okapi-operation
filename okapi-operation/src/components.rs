@@ -70,7 +70,7 @@ impl Components {
     }
 
     /// Add security scheme to components.
-    pub fn add_security<N>(&mut self, name: N, sec: SecurityScheme)
+    pub fn add_security_scheme<N>(&mut self, name: N, sec: SecurityScheme)
     where
         N: Into<String>,
     {

@@ -4,16 +4,17 @@ use axum::{
     extract::Request, handler::Handler, http::Method, response::IntoResponse, routing::Route,
     Router as AxumRouter,
 };
-use okapi::openapi3::OpenApi;
 use tower::{Layer, Service};
-
-use crate::OpenApiBuilder;
 
 use super::{
     get,
     method_router::{MethodRouter, MethodRouterOperations},
     operations::RoutesOperations,
+    utils::convert_axum_path_to_openapi,
 };
+use crate::OpenApiBuilder;
+
+pub const DEFAULT_OPENAPI_PATH: &str = "/openapi";
 
 /// Drop-in replacement for [`axum::Router`], which supports OpenAPI operations.
 ///
@@ -23,6 +24,7 @@ use super::{
 pub struct Router<S = ()> {
     axum_router: AxumRouter<S>,
     routes_operations_map: HashMap<String, MethodRouterOperations>,
+    openapi_builder_template: OpenApiBuilder,
 }
 
 impl<S> From<AxumRouter<S>> for Router<S> {
@@ -30,6 +32,7 @@ impl<S> From<AxumRouter<S>> for Router<S> {
         Self {
             axum_router: value,
             routes_operations_map: Default::default(),
+            openapi_builder_template: OpenApiBuilder::default(),
         }
     }
 }
@@ -61,6 +64,7 @@ where
         Self {
             axum_router: AxumRouter::new(),
             routes_operations_map: HashMap::new(),
+            openapi_builder_template: OpenApiBuilder::default(),
         }
     }
 
@@ -218,6 +222,7 @@ where
         Router {
             axum_router: self.axum_router.layer(layer),
             routes_operations_map: self.routes_operations_map,
+            openapi_builder_template: self.openapi_builder_template,
         }
     }
 
@@ -235,6 +240,7 @@ where
         Router {
             axum_router: self.axum_router.route_layer(layer),
             routes_operations_map: self.routes_operations_map,
+            openapi_builder_template: self.openapi_builder_template,
         }
     }
 
@@ -283,6 +289,7 @@ where
         Router {
             axum_router: self.axum_router.with_state(state),
             routes_operations_map: self.routes_operations_map,
+            openapi_builder_template: self.openapi_builder_template,
         }
     }
 
@@ -304,10 +311,59 @@ where
         RoutesOperations::new(self.routes_operations_map.clone())
     }
 
-    // TODO: refactor, I don't like this API
+    /// Generate [`OpenApiBuilder`] from current router.
+    ///
+    /// Generated builder will be based on current builder template,
+    /// have all routes and types, present in this router.
+    ///
+    /// If template was not set, then [`OpenApiBuilder::default()`] is used.
+    pub fn generate_openapi_builder(&self) -> OpenApiBuilder {
+        let routes = self.routes_operations().openapi_operation_generators();
+        let mut builder = self.openapi_builder_template.clone();
+        // Don't use try_operations since duplicates should be checked
+        // when mounting route to axum router.
+        builder.operations(
+            routes
+                .into_iter()
+                .map(|((x, y), z)| (convert_axum_path_to_openapi(&x), y, z)),
+        );
+        builder
+    }
+
+    /// Set [`OpenApiBuilder`] template for this router.
+    ///
+    /// By default [`OpenApiBuilder::default()`] is used.
+    pub fn set_openapi_builder_template(&mut self, builder: OpenApiBuilder) -> &mut Self {
+        self.openapi_builder_template = builder;
+        self
+    }
+
+    /// Update [`OpenApiBuilder`] template of this router.
+    ///
+    /// By default [`OpenApiBuilder::default()`] is used.
+    pub fn update_openapi_builder_template<F>(&mut self, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut OpenApiBuilder),
+    {
+        f(&mut self.openapi_builder_template);
+        self
+    }
+
+    /// Get mutable reference to [`OpenApiBuilder`] template of this router.
+    ///
+    /// By default [`OpenApiBuilder::default()`] is set.
+    pub fn openapi_builder_template_mut(&mut self) -> &mut OpenApiBuilder {
+        &mut self.openapi_builder_template
+    }
+
     /// Generate OpenAPI specification, mount it to inner router and return inner [`axum::Router`].
     ///
-    /// This method is just for convenience and should be used after all routes mounted to root router.
+    /// Specification is based on [`OpenApiBuilder`] template, if one was set previously.
+    /// If template was not set, then [`OpenApiBuilder::default()`] is used.
+    ///
+    /// Note that passed `title` and `version` will override same values in OpenAPI builder template.
+    ///
+    /// By default specification served at [`DEFAULT_OPENAPI_PATH`] (`/openapi`).
     ///
     /// # Example
     ///
@@ -318,39 +374,42 @@ where
     ///
     /// let app = Router::new().route("/", get(openapi_handler!(handler)));
     /// # async {
-    /// let oas_builder = OpenApiBuilder::new("Demo", "1.0.0");
-    /// let app = app.route_openapi_specification("/openapi", oas_builder).expect("ok");
+    /// let app = app.finish_openapi("/openapi", "Demo", "1.0.0").expect("ok");
     /// # let listener = tokio::net::TcpListener::bind("").await.unwrap();
     /// # axum::serve(listener, app.into_make_service()).await.unwrap()
     /// # };
     /// ```
-    pub fn route_openapi_specification(
+    pub fn finish_openapi<'a>(
         mut self,
-        path: &str,
-        mut openapi_builder: OpenApiBuilder,
+        serve_path: impl Into<Option<&'a str>>,
+        title: impl Into<String>,
+        version: impl Into<String>,
     ) -> Result<AxumRouter<S>, anyhow::Error> {
-        let mut routes = self.routes_operations().openapi_operation_generators();
-        let _ = routes.insert(
-            (path.to_string(), Method::GET),
-            super::serve_openapi_spec__openapi,
-        );
-        let spec = openapi_builder
-            .add_operations(routes.into_iter().map(|((x, y), z)| (x, y, z)))?
-            .generate_spec()?;
-        self = self.route(path, get(super::serve_openapi_spec).with_state(spec));
+        let serve_path = serve_path.into().unwrap_or(DEFAULT_OPENAPI_PATH);
+
+        // Don't use try_operation since duplicates should be checked
+        // when mounting route to axum router.
+        let spec = self
+            .generate_openapi_builder()
+            .operation(
+                convert_axum_path_to_openapi(serve_path),
+                Method::GET,
+                super::serve_openapi_spec__openapi,
+            )
+            .title(title)
+            .version(version)
+            .build()?;
+
+        self = self.route(serve_path, get(super::serve_openapi_spec).with_state(spec));
+
         Ok(self.axum_router)
     }
-
-    // fn add_routes_to_openapi_builder(
-    //     &self,
-    //     builder: &mut OpenApiBuilder,
-    // ) -> Result<(), anyhow::Error> {
-    //     let mut routes = self.routes_operations().openapi_operation_generators();
-    // }
 }
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::let_underscore_future)]
+
     use axum::{http::Method, routing::get as axum_get};
     use okapi::openapi3::Operation;
     use tokio::net::TcpListener;

@@ -1,7 +1,7 @@
 # `okapi-operation`
 
 - [`okapi-operation`](#-okapi-operation-)
-  * [Example (using axum, but without axum_integration feature)](#example-using-axum-but-without-axum_integration-feature))
+  * [Example (using axum, but without axum_integration feature)](#example-using-axum-but-without-axum_integration-feature)
   * [`openapi` macro](#openapi-macro)
     + [Minimal example](#minimal-example)
     + [Operation attributes](#operation-attributes)
@@ -31,7 +31,7 @@ Crate which allow to generate OpenAPI's operation definitions (using types from 
 
 ## Example (using axum, but without axum_integration feature)
 
-```rust,ignore
+```ignore
 use axum::{
     extract::Query,
     http::Method,
@@ -74,9 +74,9 @@ async fn echo_post(
 async fn openapi_spec() -> Json<OpenApi> {
     let generate_spec = || {
         OpenApiBuilder::new("Echo API", "1.0.0")
-            .add_operation("/echo/get", Method::GET, echo_get__openapi)?
-            .add_operation("/echo/post", Method::POST, echo_post__openapi)?
-            .generate_spec()
+            .try_operation("/echo/get", Method::GET, echo_get__openapi)?
+            .try_operation("/echo/post", Method::POST, echo_post__openapi)?
+            .build()
     };
     generate_spec().map(Json).expect("Should not fail")
 }
@@ -88,10 +88,8 @@ async fn main() {
         .route("/echo/post", post(echo_post))
         .route("/openapi", get(openapi_spec));
 
-    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(listener, app.into_make_service()).await.unwrap()
 }
 ```
 
@@ -107,7 +105,7 @@ Since most attributes taken from OpenAPI specification directly, refer to [OpenA
 
 Macro doesn't have any mandatory attributes.
 
-```rust,compile
+```compile
 # use okapi_operation::*;
 #[openapi]
 async fn handler() {}
@@ -119,7 +117,7 @@ All attributes is translated into same fields of [`okapi::openapi3::Operation`].
 
 Tags is provided as single string, which later is separated by comma.
 
-```rust,compile
+```no_run
 # use okapi_operation::*;
 #[openapi(
     summary = "Simple handler",
@@ -135,7 +133,7 @@ async fn handler() {}
 
 External documentation can be set for operation. It is translated to [`okapi::openapi3::ExternalDocs`].
 
-```rust,compile
+```no_run
 # use okapi_operation::*;
 #[openapi(
     external_docs(
@@ -170,7 +168,7 @@ This definition translated to [`okapi::openapi3::Parameter`] with [`okapi::opena
 * style (string, optional) - how parameter is serialized (see [OpenAPI docs](https://swagger.io/docs/specification/serialization/));
 * schema (path, mandatory) - path to type of parameter.
 
-```rust,compile
+```no_run
 # use okapi_operation::*;
 #[openapi(
     parameters(
@@ -201,7 +199,7 @@ async fn handler() {}
 * allow_reserved (bool, optional) - allow reserved characters `:/?#[]@!$&'()*+,;=` in parameter;
 * schema (path, mandatory) - path to type of parameter.
 
-```rust,compile
+```no_run
 # use okapi_operation::*;
 #[openapi(
     parameters(
@@ -233,7 +231,7 @@ async fn handler() {}
 
 Unlike header and query parameters, all path parameters is mandatory.
 
-```rust,compile
+```no_run
 # use okapi_operation::*;
 #[openapi(
     parameters(
@@ -261,7 +259,7 @@ async fn handler() {}
 * allow_empty_value (bool, optional) - allow empty value for this parameter;
 * schema (path, mandatory) - path to type of parameter.
 
-```rust,compile
+```no_run
 # use okapi_operation::*;
 #[openapi(
     parameters(
@@ -281,7 +279,7 @@ async fn handler() {}
 
 #### Reference
 
-```rust,compile
+```no_run
 # use okapi_operation::*;
 #[openapi(
     parameters(
@@ -295,7 +293,7 @@ async fn handler() {}
 
 Specifying multiple parameters is supported:
 
-```rust,compile
+```no_run
 # use okapi_operation::*;
 #[openapi(
     parameters(
@@ -338,7 +336,7 @@ Request body definition have following attributes:
 * required (bool, optional);
 * content (path, optional) - path to type, which schema should be used. If not speified, argument's type is used.
 
-```rust,compile
+```no_run
 # use okapi_operation::*;
 # use okapi::schemars::*;
 # struct Json<T>(T);
@@ -378,7 +376,7 @@ Responses can be:
 
 Return type should implement [`ToResponses`] trait.
 
-```rust,compile
+```no_run
 # use okapi_operation::*;
 # use okapi::schemars::*;
 # struct Json<T>(T);
@@ -399,7 +397,7 @@ async fn handler() -> Json<Response> {
 
 If return type doesn't implement [`ToResponses`], it can be ignored with special attribute `ignore_return_type`:
 
-```rust,compile
+```no_run
 # use okapi_operation::*;
 #[openapi(
     responses(
@@ -427,7 +425,7 @@ Single response have following attributes:
 * content (path, mandatory) - path to type, which provide schemas for this response;
 * headers (list, optional) - list of headers (definition is the same as in request parameters). References to header is also allowed.
 
-```rust,compile
+```no_run
 # use okapi_operation::*;
 # use okapi::schemars::*;
 # struct Json<T>(T);
@@ -468,7 +466,7 @@ async fn handler() {
 
 Responses can be generated from type, which implement [`ToResponses`]:
 
-```rust,compile
+```no_run
 # use okapi_operation::*;
 # use okapi::schemars::*;
 # struct Json<T>(T);
@@ -498,7 +496,7 @@ Reference to response have following attributes:
 * status (string, mandatory) - HTTP status (or pattern like 2XX, 3XX). To define defautl fallback type, use special `default` value;
 * reference (string, mandatory).
 
-```rust,compile
+```no_run
 # use okapi_operation::*;
 #[openapi(
     responses(
@@ -524,7 +522,7 @@ first occurence is used. Responses merged in following order:
 * references;
 * from types.
 
-```rust,compile
+```no_run
 # use okapi_operation::*;
 # use okapi::schemars::*;
 # struct Json<T>(T);
@@ -566,7 +564,7 @@ Security scheme have following attributes:
 
 If multiple schemes specified, they are combined as OR. AND is not currently supported.
 
-```rust,compile
+```no_run
 # use okapi_operation::*;
 #[openapi(
     security(
@@ -616,9 +614,9 @@ async fn handler2() -> Json<String> {
 
 fn generate_openapi_specification() -> Result<OpenApi, anyhow::Error> {
     OpenApiBuilder::new("Demo", "1.0.0")
-        .add_operation("/handle/1", Method::POST, handler1__openapi)?
-        .add_operation("/handle/2", Method::GET, handler2__openapi)?
-        .generate_spec()
+        .operation("/handle/1", Method::POST, handler1__openapi)
+        .operation("/handle/2", Method::GET, handler2__openapi)
+        .build()
 }
 
 assert!(generate_openapi_specification().is_ok());
