@@ -44,8 +44,8 @@ async fn main() {
         .route_openapi_specification("/openapi", oas_builder)
         .expect("no problem");
 
-    axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
-        .serve(app.into_make_service())
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(listener, app.into_make_service())
         .await
         .unwrap()
 }

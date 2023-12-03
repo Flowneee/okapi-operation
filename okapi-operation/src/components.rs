@@ -47,6 +47,7 @@ impl ComponentsBuilder {
 }
 
 /// Storage for reusable components (schemas/parameters/responses/...).
+#[derive(Clone)]
 pub struct Components {
     generator: SchemaGenerator,
     components: okapi::openapi3::Components,

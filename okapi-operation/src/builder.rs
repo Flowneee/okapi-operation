@@ -4,6 +4,7 @@ use okapi::openapi3::{Info, OpenApi, SecurityRequirement, SecurityScheme};
 use crate::{components::Components, utils::convert_axum_path_to_openapi, OperationGenerator};
 
 /// OpenAPI specificatrion builder.
+#[derive(Clone)]
 pub struct OpenApiBuilder {
     spec: OpenApi,
     components: Components,
@@ -31,7 +32,7 @@ impl OpenApiBuilder {
     ///
     /// ## NOTE
     ///
-    /// This will override existing components in builder. use this before adding anything to
+    /// This will override existing components in builder. Use this before adding anything to
     /// the builder.
     pub fn set_components(&mut self, new_components: Components) -> &mut Self {
         self.components = new_components;

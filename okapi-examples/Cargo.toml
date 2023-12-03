@@ -6,8 +6,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = { version = "0.6", features = ["headers"] }
-tokio = { version = "1.28.0", features = ["full"] }
+axum = "0.7"
+axum-extra = { version = "0.9", features = ["typed-header"] }
+tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
 okapi-operation = { path = "../okapi-operation", features = ["default", "yaml"] }
 okapi-operation-macro = { path = "../okapi-operation-macro" }

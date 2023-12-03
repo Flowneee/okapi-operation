@@ -1,10 +1,10 @@
 use std::{collections::HashMap, convert::Infallible, fmt};
 
 use axum::{
-    body::{Body, HttpBody},
     error_handling::HandleError,
+    extract::Request,
     handler::Handler,
-    http::{Method, Request},
+    http::Method,
     response::IntoResponse,
     routing::{MethodFilter, MethodRouter as AxumMethodRouter, Route},
 };
@@ -19,13 +19,12 @@ macro_rules! top_level_service_fn {
         $name:ident, $method:ident
     ) => {
         $(#[$m])*
-        pub fn $name<I, Svc, S, B, E>(svc: I) -> MethodRouter<S, B, E>
+        pub fn $name<I, Svc, S, E>(svc: I) -> MethodRouter<S, E>
         where
-            I: Into<ServiceWithOperation<Svc, B, E>>,
-            Svc: Service<Request<B>, Error = E> + Clone + Send + 'static,
+            I: Into<ServiceWithOperation<Svc, E>>,
+            Svc: Service<Request, Error = E> + Clone + Send + 'static,
             Svc::Response: IntoResponse + 'static,
             Svc::Future: Send + 'static,
-            B: HttpBody + Send + 'static,
             S: Clone,
         {
             on_service(MethodFilter::$method, svc)
@@ -39,11 +38,10 @@ macro_rules! top_level_handler_fn {
         $name:ident, $method:ident
     ) => {
         $(#[$m])*
-        pub fn $name<I, H, T, S, B>(handler: I) -> MethodRouter<S, B, Infallible>
+        pub fn $name<I, H, T, S>(handler: I) -> MethodRouter<S, Infallible>
         where
-            I: Into<HandlerWithOperation<H, T, S, B>>,
-            H: Handler<T, S, B>,
-            B: HttpBody + Send + 'static,
+            I: Into<HandlerWithOperation<H, T, S>>,
+            H: Handler<T, S>,
             T: 'static,
             S: Clone + Send + Sync + 'static,
         {
@@ -61,8 +59,8 @@ macro_rules! chained_service_fn {
         $(#[$m])*
         pub fn $name<I, Svc>(self, svc: I) -> Self
         where
-            I: Into<ServiceWithOperation<Svc, B, E>>,
-            Svc: Service<Request<B>, Error = E> + Clone + Send + 'static,
+            I: Into<ServiceWithOperation<Svc, E>>,
+            Svc: Service<Request, Error = E> + Clone + Send + 'static,
             Svc::Response: IntoResponse + 'static,
             Svc::Future: Send + 'static,
         {
@@ -80,8 +78,8 @@ macro_rules! chained_handler_fn {
         $(#[$m])*
         pub fn $name<I, H, T>(self, handler: I) -> Self
         where
-            I: Into<HandlerWithOperation<H, T, S, B>>,
-            H: Handler<T, S, B>,
+            I: Into<HandlerWithOperation<H, T, S>>,
+            H: Handler<T, S>,
             T: 'static,
             S: Send + Sync + 'static
         {
@@ -91,13 +89,12 @@ macro_rules! chained_handler_fn {
 }
 
 // TODO: check whether E generic parameter is redundant
-pub fn on_service<I, Svc, S, B, E>(filter: MethodFilter, svc: I) -> MethodRouter<S, B, E>
+pub fn on_service<I, Svc, S, E>(filter: MethodFilter, svc: I) -> MethodRouter<S, E>
 where
-    I: Into<ServiceWithOperation<Svc, B, E>>,
-    Svc: Service<Request<B>, Error = E> + Clone + Send + 'static,
+    I: Into<ServiceWithOperation<Svc, E>>,
+    Svc: Service<Request, Error = E> + Clone + Send + 'static,
     Svc::Response: IntoResponse + 'static,
     Svc::Future: Send + 'static,
-    B: HttpBody + Send + 'static,
     S: Clone,
 {
     MethodRouter::new().on_service(filter, svc)
@@ -112,11 +109,10 @@ top_level_service_fn!(post_service, POST);
 top_level_service_fn!(put_service, PUT);
 top_level_service_fn!(trace_service, TRACE);
 
-pub fn on<I, H, T, S, B>(filter: MethodFilter, handler: I) -> MethodRouter<S, B, Infallible>
+pub fn on<I, H, T, S>(filter: MethodFilter, handler: I) -> MethodRouter<S, Infallible>
 where
-    I: Into<HandlerWithOperation<H, T, S, B>>,
-    H: Handler<T, S, B>,
-    B: HttpBody + Send + 'static,
+    I: Into<HandlerWithOperation<H, T, S>>,
+    H: Handler<T, S>,
     T: 'static,
     S: Clone + Send + Sync + 'static,
 {
@@ -146,28 +142,28 @@ pub(super) struct MethodRouterOperations {
 
 impl MethodRouterOperations {
     fn on(mut self, filter: MethodFilter, operation: Option<OperationGenerator>) -> Self {
-        if filter.contains(MethodFilter::GET) {
+        if is_filter_present(filter, MethodFilter::GET) {
             self.get = operation;
         }
-        if filter.contains(MethodFilter::HEAD) {
+        if is_filter_present(filter, MethodFilter::HEAD) {
             self.head = operation;
         }
-        if filter.contains(MethodFilter::DELETE) {
+        if is_filter_present(filter, MethodFilter::DELETE) {
             self.delete = operation;
         }
-        if filter.contains(MethodFilter::OPTIONS) {
+        if is_filter_present(filter, MethodFilter::OPTIONS) {
             self.options = operation;
         }
-        if filter.contains(MethodFilter::PATCH) {
+        if is_filter_present(filter, MethodFilter::PATCH) {
             self.patch = operation;
         }
-        if filter.contains(MethodFilter::POST) {
+        if is_filter_present(filter, MethodFilter::POST) {
             self.post = operation;
         }
-        if filter.contains(MethodFilter::PUT) {
+        if is_filter_present(filter, MethodFilter::PUT) {
             self.put = operation;
         }
-        if filter.contains(MethodFilter::TRACE) {
+        if is_filter_present(filter, MethodFilter::TRACE) {
             self.trace = operation;
         }
         self
@@ -264,29 +260,28 @@ impl MethodRouterOperations {
 
 /// Drop-in replacement for [`axum::routing::MethodRouter`], which supports
 /// OpenAPI definitions of handlers or services.
-pub struct MethodRouter<S = (), B = Body, E = Infallible> {
-    pub(super) axum_method_router: AxumMethodRouter<S, B, E>,
+pub struct MethodRouter<S = (), E = Infallible> {
+    pub(super) axum_method_router: AxumMethodRouter<S, E>,
     pub(super) operations: MethodRouterOperations,
 }
 
-impl<S, B, E> fmt::Debug for MethodRouter<S, B, E> {
+impl<S, E> fmt::Debug for MethodRouter<S, E> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.axum_method_router.fmt(f)
     }
 }
 
-impl<S, B, E> Default for MethodRouter<S, B, E>
+impl<S, E> Default for MethodRouter<S, E>
 where
     S: Clone,
-    B: HttpBody + Send + 'static,
 {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<S, B, E> From<AxumMethodRouter<S, B, E>> for MethodRouter<S, B, E> {
-    fn from(value: AxumMethodRouter<S, B, E>) -> Self {
+impl<S, E> From<AxumMethodRouter<S, E>> for MethodRouter<S, E> {
+    fn from(value: AxumMethodRouter<S, E>) -> Self {
         Self {
             axum_method_router: value,
             operations: Default::default(),
@@ -294,15 +289,14 @@ impl<S, B, E> From<AxumMethodRouter<S, B, E>> for MethodRouter<S, B, E> {
     }
 }
 
-impl<S, B> MethodRouter<S, B, Infallible>
+impl<S> MethodRouter<S, Infallible>
 where
     S: Clone,
-    B: HttpBody + Send + 'static,
 {
     pub fn on<I, H, T>(self, filter: MethodFilter, handler: I) -> Self
     where
-        I: Into<HandlerWithOperation<H, T, S, B>>,
-        H: Handler<T, S, B>,
+        I: Into<HandlerWithOperation<H, T, S>>,
+        H: Handler<T, S>,
         T: 'static,
         S: Send + Sync + 'static,
     {
@@ -327,7 +321,7 @@ where
 
     pub fn fallback<H, T>(self, handler: H) -> Self
     where
-        H: Handler<T, S, B>,
+        H: Handler<T, S>,
         T: 'static,
         S: Send + Sync + 'static,
     {
@@ -338,10 +332,9 @@ where
     }
 }
 
-impl<S, B, E> MethodRouter<S, B, E>
+impl<S, E> MethodRouter<S, E>
 where
     S: Clone,
-    B: HttpBody + Send + 'static,
 {
     pub fn new() -> Self {
         Self {
@@ -351,14 +344,14 @@ where
     }
 
     /// Convert method router into [`axum::routing::MethodRouter`], dropping related OpenAPI definitions.
-    pub fn into_axum(self) -> AxumMethodRouter<S, B, E> {
+    pub fn into_axum(self) -> AxumMethodRouter<S, E> {
         self.axum_method_router
     }
 
     pub fn on_service<I, Svc>(self, filter: MethodFilter, svc: I) -> Self
     where
-        I: Into<ServiceWithOperation<Svc, B, E>>,
-        Svc: Service<Request<B>, Error = E> + Clone + Send + 'static,
+        I: Into<ServiceWithOperation<Svc, E>>,
+        Svc: Service<Request, Error = E> + Clone + Send + 'static,
         Svc::Response: IntoResponse + 'static,
         Svc::Future: Send + 'static,
     {
@@ -382,7 +375,7 @@ where
 
     pub fn fallback_service<Svc>(self, svc: Svc) -> Self
     where
-        Svc: Service<Request<B>, Error = E> + Clone + Send + 'static,
+        Svc: Service<Request, Error = E> + Clone + Send + 'static,
         Svc::Response: IntoResponse + 'static,
         Svc::Future: Send + 'static,
     {
@@ -392,16 +385,15 @@ where
         }
     }
 
-    pub fn layer<L, NewReqBody, NewError>(self, layer: L) -> MethodRouter<S, NewReqBody, NewError>
+    pub fn layer<L, NewError>(self, layer: L) -> MethodRouter<S, NewError>
     where
-        L: Layer<Route<B, E>> + Clone + Send + 'static,
-        L::Service: Service<Request<NewReqBody>> + Clone + Send + 'static,
-        <L::Service as Service<Request<NewReqBody>>>::Response: IntoResponse + 'static,
-        <L::Service as Service<Request<NewReqBody>>>::Error: Into<NewError> + 'static,
-        <L::Service as Service<Request<NewReqBody>>>::Future: Send + 'static,
+        L: Layer<Route<E>> + Clone + Send + 'static,
+        L::Service: Service<Request> + Clone + Send + 'static,
+        <L::Service as Service<Request>>::Response: IntoResponse + 'static,
+        <L::Service as Service<Request>>::Error: Into<NewError> + 'static,
+        <L::Service as Service<Request>>::Future: Send + 'static,
         E: 'static,
         S: 'static,
-        NewReqBody: HttpBody + 'static,
         NewError: 'static,
     {
         MethodRouter {
@@ -410,12 +402,12 @@ where
         }
     }
 
-    pub fn route_layer<L, NewResBody>(self, layer: L) -> MethodRouter<S, B, E>
+    pub fn route_layer<L>(self, layer: L) -> MethodRouter<S, E>
     where
-        L: Layer<Route<B, E>> + Clone + Send + 'static,
-        L::Service: Service<Request<B>, Error = E> + Clone + Send + 'static,
-        <L::Service as Service<Request<B>>>::Response: IntoResponse + 'static,
-        <L::Service as Service<Request<B>>>::Future: Send + 'static,
+        L: Layer<Route<E>> + Clone + Send + 'static,
+        L::Service: Service<Request, Error = E> + Clone + Send + 'static,
+        <L::Service as Service<Request>>::Response: IntoResponse + 'static,
+        <L::Service as Service<Request>>::Future: Send + 'static,
         E: 'static,
         S: 'static,
     {
@@ -425,22 +417,21 @@ where
         }
     }
 
-    pub fn merge(self, other: MethodRouter<S, B, E>) -> Self {
+    pub fn merge(self, other: MethodRouter<S, E>) -> Self {
         MethodRouter {
             axum_method_router: self.axum_method_router.merge(other.axum_method_router),
             operations: self.operations.merge(other.operations),
         }
     }
 
-    pub fn handle_error<F, T>(self, f: F) -> MethodRouter<S, B, Infallible>
+    pub fn handle_error<F, T>(self, f: F) -> MethodRouter<S, Infallible>
     where
         F: Clone + Send + Sync + 'static,
-        HandleError<Route<B, E>, F, T>: Service<Request<B>, Error = Infallible>,
-        <HandleError<Route<B, E>, F, T> as Service<Request<B>>>::Future: Send,
-        <HandleError<Route<B, E>, F, T> as Service<Request<B>>>::Response: IntoResponse + Send,
+        HandleError<Route<E>, F, T>: Service<Request, Error = Infallible>,
+        <HandleError<Route<E>, F, T> as Service<Request>>::Future: Send,
+        <HandleError<Route<E>, F, T> as Service<Request>>::Response: IntoResponse + Send,
         T: 'static,
         E: 'static,
-        B: 'static,
         S: 'static,
     {
         MethodRouter {
@@ -449,10 +440,38 @@ where
         }
     }
 
-    pub fn with_state<S2>(self, state: S) -> MethodRouter<S2, B, E> {
+    pub fn with_state<S2>(self, state: S) -> MethodRouter<S2, E> {
         MethodRouter {
             axum_method_router: self.axum_method_router.with_state(state),
             operations: self.operations,
         }
     }
+}
+
+fn is_filter_present(lhs: MethodFilter, rhs: MethodFilter) -> bool {
+    lhs.or(rhs) == lhs
+}
+
+#[test]
+fn test_is_filter_present() {
+    // Positive tests
+    assert!(is_filter_present(
+        MethodFilter::DELETE,
+        MethodFilter::DELETE
+    ));
+    assert!(is_filter_present(
+        MethodFilter::DELETE.or(MethodFilter::GET),
+        MethodFilter::DELETE
+    ));
+    assert!(is_filter_present(
+        MethodFilter::GET.or(MethodFilter::DELETE),
+        MethodFilter::DELETE
+    ));
+    assert!(is_filter_present(
+        MethodFilter::DELETE.or(MethodFilter::DELETE),
+        MethodFilter::DELETE
+    ));
+
+    // Negative tests
+    assert!(!is_filter_present(MethodFilter::GET, MethodFilter::DELETE));
 }

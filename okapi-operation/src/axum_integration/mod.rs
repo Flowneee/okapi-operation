@@ -136,7 +136,7 @@ mod openapi_macro {
         #[openapi]
         async fn handle() {}
 
-        let _ = Router::<(), Body>::new().route("/", get(openapi_handler!(handle)));
+        let _ = Router::<()>::new().route("/", get(openapi_handler!(handle)));
     }
 
     #[test]
@@ -150,7 +150,7 @@ mod openapi_macro {
             }
         }
 
-        let _ = Router::<(), Body>::new().route("/", get(openapi_handler!(outer::inner::handle)));
+        let _ = Router::<()>::new().route("/", get(openapi_handler!(outer::inner::handle)));
     }
 
     #[test]
@@ -160,7 +160,7 @@ mod openapi_macro {
             unimplemented!()
         }
 
-        let _ = Router::<(), Body>::new().route("/", get(openapi_handler!(service)));
+        let _ = Router::<()>::new().route("/", get(openapi_handler!(service)));
     }
 
     #[test]
@@ -179,7 +179,7 @@ mod openapi_macro {
             }
         }
 
-        let _ = Router::<(), Body>::new().route("/", get(openapi_handler!(outer::inner::service)));
+        let _ = Router::<()>::new().route("/", get(openapi_handler!(outer::inner::service)));
     }
 
     #[allow(deprecated)]
@@ -190,7 +190,7 @@ mod openapi_macro {
             unimplemented!()
         }
 
-        let _ = Router::<(), Body>::new().route("/", get(openapi_service!(service)));
+        let _ = Router::<()>::new().route("/", get(openapi_service!(service)));
     }
 
     #[allow(deprecated)]
@@ -210,6 +210,6 @@ mod openapi_macro {
             }
         }
 
-        let _ = Router::<(), Body>::new().route("/", get(openapi_service!(outer::inner::service)));
+        let _ = Router::<()>::new().route("/", get(openapi_service!(outer::inner::service)));
     }
 }

@@ -1,13 +1,10 @@
 use std::{collections::HashMap, convert::Infallible, fmt};
 
 use axum::{
-    body::{Body, HttpBody},
-    handler::Handler,
-    http::{Method, Request},
-    response::IntoResponse,
-    routing::Route,
+    extract::Request, handler::Handler, http::Method, response::IntoResponse, routing::Route,
     Router as AxumRouter,
 };
+use okapi::openapi3::OpenApi;
 use tower::{Layer, Service};
 
 use crate::OpenApiBuilder;
@@ -23,13 +20,13 @@ use super::{
 /// This replacement cannot be used as [`Service`] instead require explicit
 /// convertion of this type to `axum::Router`. This is done to ensure that
 /// OpenAPI specification generated and mounted.
-pub struct Router<S = (), B = Body> {
-    axum_router: AxumRouter<S, B>,
+pub struct Router<S = ()> {
+    axum_router: AxumRouter<S>,
     routes_operations_map: HashMap<String, MethodRouterOperations>,
 }
 
-impl<S, B> From<AxumRouter<S, B>> for Router<S, B> {
-    fn from(value: AxumRouter<S, B>) -> Self {
+impl<S> From<AxumRouter<S>> for Router<S> {
+    fn from(value: AxumRouter<S>) -> Self {
         Self {
             axum_router: value,
             routes_operations_map: Default::default(),
@@ -37,9 +34,8 @@ impl<S, B> From<AxumRouter<S, B>> for Router<S, B> {
     }
 }
 
-impl<S, B> Default for Router<S, B>
+impl<S> Default for Router<S>
 where
-    B: HttpBody + Send + 'static,
     S: Clone + Send + Sync + 'static,
 {
     fn default() -> Self {
@@ -47,7 +43,7 @@ where
     }
 }
 
-impl<S, B> fmt::Debug for Router<S, B>
+impl<S> fmt::Debug for Router<S>
 where
     S: fmt::Debug,
 {
@@ -56,9 +52,8 @@ where
     }
 }
 
-impl<S, B> Router<S, B>
+impl<S> Router<S>
 where
-    B: HttpBody + Send + 'static,
     S: Clone + Send + Sync + 'static,
 {
     /// Create new router.
@@ -85,12 +80,13 @@ where
     /// let app = Router::new().route("/", get(openapi_handler!(handler)));
     /// # async {
     /// # let (app, _) = app.into_parts();
-    /// # axum::Server::bind(&"".parse().unwrap()).serve(app.into_make_service()).await.unwrap();
+    /// # let listener = tokio::net::TcpListener::bind("").await.unwrap();
+    /// # axum::serve(listener, app.into_make_service()).await.unwrap()
     /// # };
     /// ```
     pub fn route<R>(mut self, path: &str, method_router: R) -> Self
     where
-        R: Into<MethodRouter<S, B>>,
+        R: Into<MethodRouter<S>>,
     {
         let method_router = method_router.into();
 
@@ -115,7 +111,7 @@ where
     /// TODO
     pub fn route_service<Svc>(self, path: &str, service: Svc) -> Self
     where
-        Svc: Service<Request<B>, Error = Infallible> + Clone + Send + 'static,
+        Svc: Service<Request, Error = Infallible> + Clone + Send + 'static,
         Svc::Response: IntoResponse,
         Svc::Future: Send + 'static,
     {
@@ -140,13 +136,13 @@ where
     /// let handler_router = Router::new().route("/", get(openapi_handler!(handler)));
     /// let app = Router::new().nest("/handle", handler_router);
     /// # async {
-    /// # let (app, _) = app.into_parts();
-    /// # axum::Server::bind(&"".parse().unwrap()).serve(app.into_make_service()).await.unwrap();
+    /// # let listener = tokio::net::TcpListener::bind("").await.unwrap();
+    /// # axum::serve(listener, app.into_parts().0.into_make_service()).await.unwrap()
     /// # };
     /// ```
     pub fn nest<R>(mut self, path: &str, router: R) -> Self
     where
-        R: Into<Router<S, B>>,
+        R: Into<Router<S>>,
     {
         let router = router.into();
         for (inner_path, operation) in router.routes_operations_map.into_iter() {
@@ -165,7 +161,7 @@ where
     /// For details see [`axum::Router::nest_service`].
     pub fn nest_service<Svc>(self, path: &str, svc: Svc) -> Self
     where
-        Svc: Service<Request<B>, Error = Infallible> + Clone + Send + 'static,
+        Svc: Service<Request, Error = Infallible> + Clone + Send + 'static,
         Svc::Response: IntoResponse,
         Svc::Future: Send + 'static,
     {
@@ -191,12 +187,13 @@ where
     /// let app = Router::new().route("/", get(openapi_handler!(handler))).merge(handler_router);
     /// # async {
     /// # let (app, _) = app.into_parts();
-    /// # axum::Server::bind(&"".parse().unwrap()).serve(app.into_make_service()).await.unwrap();
+    /// # let listener = tokio::net::TcpListener::bind("").await.unwrap();
+    /// # axum::serve(listener, app.into_make_service()).await.unwrap()
     /// # };
     /// ```
     pub fn merge<R>(mut self, other: R) -> Self
     where
-        R: Into<Router<S, B>>,
+        R: Into<Router<S>>,
     {
         let other = other.into();
         self.routes_operations_map
@@ -210,14 +207,13 @@ where
     /// Apply a [`tower::Layer`] to the router.
     ///
     /// For details see [`axum::Router::layer`].
-    pub fn layer<L, NewReqBody, NewResBody>(self, layer: L) -> Router<S, NewReqBody>
+    pub fn layer<L>(self, layer: L) -> Router<S>
     where
-        L: Layer<Route<B>> + Clone + Send + 'static,
-        L::Service: Service<Request<NewReqBody>> + Clone + Send + 'static,
-        <L::Service as Service<Request<NewReqBody>>>::Response: IntoResponse + 'static,
-        <L::Service as Service<Request<NewReqBody>>>::Error: Into<Infallible> + 'static,
-        <L::Service as Service<Request<NewReqBody>>>::Future: Send + 'static,
-        NewReqBody: HttpBody + 'static,
+        L: Layer<Route> + Clone + Send + 'static,
+        L::Service: Service<Request> + Clone + Send + 'static,
+        <L::Service as Service<Request>>::Response: IntoResponse + 'static,
+        <L::Service as Service<Request>>::Error: Into<Infallible> + 'static,
+        <L::Service as Service<Request>>::Future: Send + 'static,
     {
         Router {
             axum_router: self.axum_router.layer(layer),
@@ -228,13 +224,13 @@ where
     /// Apply a [`tower::Layer`] to the router that will only run if the request matches a route.
     ///
     /// For details see [`axum::Router::route_layer`].
-    pub fn route_layer<L, NewResBody>(self, layer: L) -> Self
+    pub fn route_layer<L>(self, layer: L) -> Self
     where
-        L: Layer<Route<B>> + Clone + Send + 'static,
-        L::Service: Service<Request<B>> + Clone + Send + 'static,
-        <L::Service as Service<Request<B>>>::Response: IntoResponse + 'static,
-        <L::Service as Service<Request<B>>>::Error: Into<Infallible> + 'static,
-        <L::Service as Service<Request<B>>>::Future: Send + 'static,
+        L: Layer<Route> + Clone + Send + 'static,
+        L::Service: Service<Request> + Clone + Send + 'static,
+        <L::Service as Service<Request>>::Response: IntoResponse + 'static,
+        <L::Service as Service<Request>>::Error: Into<Infallible> + 'static,
+        <L::Service as Service<Request>>::Future: Send + 'static,
     {
         Router {
             axum_router: self.axum_router.route_layer(layer),
@@ -252,7 +248,7 @@ where
     /// This method doesn't add anything to OpenaAPI spec.
     pub fn fallback<H, T>(self, handler: H) -> Self
     where
-        H: Handler<T, S, B>,
+        H: Handler<T, S>,
         T: 'static,
     {
         Router {
@@ -270,7 +266,7 @@ where
     /// This method doesn't add anything to OpenaAPI spec.
     pub fn fallback_service<Svc>(self, svc: Svc) -> Self
     where
-        Svc: Service<Request<B>, Error = Infallible> + Clone + Send + 'static,
+        Svc: Service<Request, Error = Infallible> + Clone + Send + 'static,
         Svc::Response: IntoResponse,
         Svc::Future: Send + 'static,
     {
@@ -283,7 +279,7 @@ where
     /// Provide the state for the router.
     ///
     /// For details see [`axum::Router::with_state`].
-    pub fn with_state<S2>(self, state: S) -> Router<S2, B> {
+    pub fn with_state<S2>(self, state: S) -> Router<S2> {
         Router {
             axum_router: self.axum_router.with_state(state),
             routes_operations_map: self.routes_operations_map,
@@ -291,7 +287,7 @@ where
     }
 
     /// Separate router into [`axum::Router`] and list of operations.
-    pub fn into_parts(self) -> (AxumRouter<S, B>, RoutesOperations) {
+    pub fn into_parts(self) -> (AxumRouter<S>, RoutesOperations) {
         (
             self.axum_router,
             RoutesOperations::new(self.routes_operations_map),
@@ -299,7 +295,7 @@ where
     }
 
     /// Get inner [`axum::Router`].
-    pub fn axum_router(&self) -> AxumRouter<S, B> {
+    pub fn axum_router(&self) -> AxumRouter<S> {
         self.axum_router.clone()
     }
 
@@ -309,7 +305,7 @@ where
     }
 
     // TODO: refactor, I don't like this API
-    /// Generate OpenAPI specification, mount it to inner router and return [`axum::Router`].
+    /// Generate OpenAPI specification, mount it to inner router and return inner [`axum::Router`].
     ///
     /// This method is just for convenience and should be used after all routes mounted to root router.
     ///
@@ -324,14 +320,15 @@ where
     /// # async {
     /// let oas_builder = OpenApiBuilder::new("Demo", "1.0.0");
     /// let app = app.route_openapi_specification("/openapi", oas_builder).expect("ok");
-    /// # axum::Server::bind(&"".parse().unwrap()).serve(app.into_make_service()).await.unwrap();
+    /// # let listener = tokio::net::TcpListener::bind("").await.unwrap();
+    /// # axum::serve(listener, app.into_make_service()).await.unwrap()
     /// # };
     /// ```
     pub fn route_openapi_specification(
         mut self,
         path: &str,
         mut openapi_builder: OpenApiBuilder,
-    ) -> Result<AxumRouter<S, B>, anyhow::Error> {
+    ) -> Result<AxumRouter<S>, anyhow::Error> {
         let mut routes = self.routes_operations().openapi_operation_generators();
         let _ = routes.insert(
             (path.to_string(), Method::GET),
@@ -343,12 +340,20 @@ where
         self = self.route(path, get(super::serve_openapi_spec).with_state(spec));
         Ok(self.axum_router)
     }
+
+    // fn add_routes_to_openapi_builder(
+    //     &self,
+    //     builder: &mut OpenApiBuilder,
+    // ) -> Result<(), anyhow::Error> {
+    //     let mut routes = self.routes_operations().openapi_operation_generators();
+    // }
 }
 
 #[cfg(test)]
 mod tests {
     use axum::{http::Method, routing::get as axum_get};
     use okapi::openapi3::Operation;
+    use tokio::net::TcpListener;
 
     use super::*;
     use crate::{
@@ -371,10 +376,8 @@ mod tests {
         assert!(meta.0.is_empty());
         let make_service = app.into_make_service();
         let _ = async move {
-            axum::Server::bind(&"".parse().unwrap())
-                .serve(make_service)
-                .await
-                .unwrap()
+            let listener = TcpListener::bind("").await.unwrap();
+            axum::serve(listener, make_service).await.unwrap()
         };
     }
 
@@ -419,10 +422,8 @@ mod tests {
 
         let make_service = app.into_make_service();
         let _ = async move {
-            axum::Server::bind(&"".parse().unwrap())
-                .serve(make_service)
-                .await
-                .unwrap()
+            let listener = TcpListener::bind("").await.unwrap();
+            axum::serve(listener, make_service).await.unwrap()
         };
     }
 }

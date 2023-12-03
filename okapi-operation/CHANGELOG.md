@@ -2,6 +2,15 @@
 All notable changes to this project will be documented in the changelog of the respective crates.
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
+
+## [0.3.0 (Unreleased)] - 2023-12-03
+### Notable changes
+ - `axum` integration updated to be used with axum 0.7. Also this makes library unusable with older versions of `axum`.
+
+### Changed
+ - `axum` integration types updated to be used with axum 0.7.
+ 
+ 
 ## [0.2.2] - 2023-12-03
 ### Fixed
 - The `Accept` header parsing in the `axum` integration handler is more relaxed to allow content types such as `+json`, `+yaml`, `text/yaml`, etc.
