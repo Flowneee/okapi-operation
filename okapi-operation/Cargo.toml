@@ -24,6 +24,7 @@ axum = { version = "0.7", optional = true }
 tower = { version = "0.4", default-features = false, optional = true }
 paste = { version = "1", optional = true }
 serde_yaml = { version = "0.8", optional = true }
+indexmap = "2.2.6"
 
 [dev-dependencies]
 axum = "0.7"

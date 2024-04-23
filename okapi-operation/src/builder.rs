@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use anyhow::{bail, Context};
 use http::Method;
+use indexmap::IndexMap;
 use okapi::openapi3::{
     Contact, ExternalDocs, License, OpenApi, SecurityRequirement, SecurityScheme, Server, Tag,
 };
@@ -13,7 +12,7 @@ use crate::{components::Components, OperationGenerator};
 pub struct OpenApiBuilder {
     spec: OpenApi,
     components: Components,
-    operations: HashMap<(String, Method), OperationGenerator>,
+    operations: IndexMap<(String, Method), OperationGenerator>,
 }
 
 impl Default for OpenApiBuilder {
@@ -25,7 +24,7 @@ impl Default for OpenApiBuilder {
         Self {
             spec,
             components: Components::new(Default::default()),
-            operations: HashMap::new(),
+            operations: IndexMap::new(),
         }
     }
 }
