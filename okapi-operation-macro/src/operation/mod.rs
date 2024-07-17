@@ -7,7 +7,7 @@ use self::{external_docs::ExternalDocs, request_body::RequestBody, response::Res
 use crate::{
     error::Error,
     operation::{parameters::Parameters, security::Security},
-    utils::{attribute_to_args, quote_option, remove_attributes},
+    utils::{attribute_to_args, quote_option, take_attributes},
     OPENAPI_FUNCTION_NAME_SUFFIX,
 };
 
@@ -88,8 +88,8 @@ impl ToTokens for OperationAttrs {
 }
 
 pub(crate) fn openapi(mut attrs: AttributeArgs, mut input: ItemFn) -> Result<TokenStream, Error> {
-    for attr in remove_attributes(&mut input.attrs, OPENAPI_ATTRIBUTE_NAME) {
-        attrs.extend(attribute_to_args(&attr)?);
+    for attr in take_attributes(&mut input.attrs, OPENAPI_ATTRIBUTE_NAME) {
+        attrs.extend(attribute_to_args(&attr, false)?);
     }
     let mut operation_attrs = OperationAttrs::from_list(&attrs)?;
     operation_attrs

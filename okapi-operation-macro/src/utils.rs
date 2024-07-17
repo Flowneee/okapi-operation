@@ -9,9 +9,14 @@ pub(super) fn quote_option<T: ToTokens>(v: &Option<T>) -> TokenStream {
         .map_or(quote! { None }, |x| quote! { Some(#x.into()) })
 }
 
-pub(super) fn attribute_to_args(attr: &Attribute) -> Result<AttributeArgs, Error> {
+pub(super) fn attribute_to_args(
+    attr: &Attribute,
+    allow_empty: bool,
+) -> Result<AttributeArgs, Error> {
     if let Meta::List(list) = attr.parse_meta()? {
         Ok(list.nested.into_iter().collect())
+    } else if allow_empty {
+        Ok(AttributeArgs::new())
     } else {
         Err(Error::syn_spanned(
             attr,
@@ -20,7 +25,7 @@ pub(super) fn attribute_to_args(attr: &Attribute) -> Result<AttributeArgs, Error
     }
 }
 
-pub(super) fn remove_attributes(attrs: &mut Vec<Attribute>, attr_name: &str) -> Vec<Attribute> {
+pub(super) fn take_attributes(attrs: &mut Vec<Attribute>, attr_name: &str) -> Vec<Attribute> {
     let mut non_matched_attrs = vec![];
     let mut result = vec![];
     for attr in attrs.drain(..) {

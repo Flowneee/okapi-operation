@@ -1,6 +1,9 @@
+#![allow(clippy::manual_unwrap_or_default)]
+
 use syn::{parse_macro_input, AttributeArgs, ItemFn};
 
 mod error;
+// mod handler;
 mod operation;
 mod utils;
 
@@ -19,3 +22,13 @@ pub fn openapi(
         Err(err) => err.write().into(),
     }
 }
+
+// /// Macro for expanding and binding OpenAPI operation specification
+// /// generator to handler or service.
+// #[proc_macro]
+// pub fn openapi_handler(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+//     match handler::openapi_handler(parse_macro_input!(input as Path)) {
+//         Ok(x) => x.into(),
+//         Err(err) => err.write().into(),
+//     }
+// }

@@ -7,7 +7,7 @@ use syn::{FnArg, ItemFn, Path, Type};
 
 use crate::{
     error::Error,
-    utils::{attribute_to_args, quote_option, remove_attributes},
+    utils::{attribute_to_args, quote_option, take_attributes},
 };
 
 static REQUEST_BODY_ATTRIBUTE_NAME: &str = "request_body";
@@ -41,7 +41,7 @@ impl RequestBody {
                 FnArg::Typed(y) => Some(y),
             })
             .find_map(|pt| {
-                remove_attributes(&mut pt.attrs, REQUEST_BODY_ATTRIBUTE_NAME)
+                take_attributes(&mut pt.attrs, REQUEST_BODY_ATTRIBUTE_NAME)
                     .into_iter()
                     .next()
                     .map(|x| (pt.ty.deref().clone(), x))
@@ -50,7 +50,7 @@ impl RequestBody {
         } else {
             return Ok(None);
         };
-        let parsed_attrs = RequestBodyAttrs::from_list(&attribute_to_args(&attr)?)?;
+        let parsed_attrs = RequestBodyAttrs::from_list(&attribute_to_args(&attr, true)?)?;
         Ok(Some(Self {
             attrs: parsed_attrs,
             argument_type: ty,

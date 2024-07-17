@@ -3,6 +3,11 @@ All notable changes to this project will be documented in the changelog of the r
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
 
+## [Unreleased] - XXXX-XX-XX
+### Changed
+ - `#[request_body]` attribute can be used without braces.
+
+
 ## [0.1.3] - 2023-04-29
 ### Changed
  - `axum` bumped to `0.6`.

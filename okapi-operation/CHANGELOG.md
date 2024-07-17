@@ -3,6 +3,13 @@ All notable changes to this project will be documented in the changelog of the r
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
 
+## [Unreleased] - XXXX-XX-XX
+### Changed
+ - `#[request_body]` attribute can be used without braces.
+
+### Fixed
+ - handler now accept `accept` header `*/*`.
+
 ## [0.3.0-rc1] - 2023-12-03
 ### Notable changes
  - `axum` integration updated to be used with axum 0.7. Also this makes library unusable with older versions of `axum`;
