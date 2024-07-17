@@ -1,7 +1,6 @@
-use std::collections::HashMap;
-
 use anyhow::{bail, Context};
 use http::Method;
+use indexmap::IndexMap;
 use okapi::openapi3::{
     Contact, ExternalDocs, License, OpenApi, SecurityRequirement, SecurityScheme, Server, Tag,
 };
@@ -13,7 +12,7 @@ use crate::{components::Components, OperationGenerator};
 pub struct OpenApiBuilder {
     spec: OpenApi,
     components: Components,
-    operations: HashMap<(String, Method), OperationGenerator>,
+    operations: IndexMap<(String, Method), OperationGenerator>,
 }
 
 impl Default for OpenApiBuilder {
@@ -25,7 +24,7 @@ impl Default for OpenApiBuilder {
         Self {
             spec,
             components: Components::new(Default::default()),
-            operations: HashMap::new(),
+            operations: IndexMap::new(),
         }
     }
 }
@@ -265,4 +264,35 @@ fn try_add_path(
         ));
     }
     Ok(())
+}
+
+/// Ensures that a builder always generates the same file every time, by not relying on
+/// internal data structures that may contain random ordering, e.g. [`std::collections::HashMap`].
+#[test]
+fn ensure_builder_deterministic() {
+    use okapi::openapi3::Operation;
+
+    let mut built_specs = Vec::new();
+
+    // generate 100 specs
+    for _ in 0..100 {
+        let mut builder = OpenApiBuilder::new("title", "version");
+        for i in 0..2 {
+            builder.operation(
+                format!("/path/{}", i),
+                Method::GET,
+                |_| Ok(Operation::default()),
+            );
+        }
+
+        let spec = builder.build()
+            .map(|x| format!("{:?}", x))
+            .expect("Failed to build spec");
+        built_specs.push(spec);
+    }
+
+    // ensure all specs are the same
+    for i in 1..built_specs.len() {
+        assert_eq!(built_specs[i - 1], built_specs[i]);
+    }
 }

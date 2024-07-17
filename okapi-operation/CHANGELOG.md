@@ -2,6 +2,9 @@
 All notable changes to this project will be documented in the changelog of the respective crates.
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
+## [Unreleased]
+### Fixed
+ - (breaking) Switched to using `indexmap` in place of `hashmap` to make produced specs deterministic.
 
 ## [Unreleased] - XXXX-XX-XX
 ### Changed
