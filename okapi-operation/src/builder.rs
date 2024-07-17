@@ -278,14 +278,13 @@ fn ensure_builder_deterministic() {
     for _ in 0..100 {
         let mut builder = OpenApiBuilder::new("title", "version");
         for i in 0..2 {
-            builder.operation(
-                format!("/path/{}", i),
-                Method::GET,
-                |_| Ok(Operation::default()),
-            );
+            builder.operation(format!("/path/{}", i), Method::GET, |_| {
+                Ok(Operation::default())
+            });
         }
 
-        let spec = builder.build()
+        let spec = builder
+            .build()
             .map(|x| format!("{:?}", x))
             .expect("Failed to build spec");
         built_specs.push(spec);

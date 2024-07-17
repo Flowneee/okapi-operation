@@ -2,16 +2,19 @@
 All notable changes to this project will be documented in the changelog of the respective crates.
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
-## [Unreleased]
-### Fixed
- - (breaking) Switched to using `indexmap` in place of `hashmap` to make produced specs deterministic.
 
 ## [Unreleased] - XXXX-XX-XX
+### Add
+ - shorter version of `openapi_handler!` macro - `oh!`.
+
 ### Changed
- - `#[request_body]` attribute can be used without braces.
+ - `#[request_body]` attribute can be used without braces;
+ - `openapi_handler` in axum integration now accept function with generic parameters;
+ - switched to using `indexmap` in place of `hashmap` to make produced specs deterministic.
 
 ### Fixed
  - handler now accept `accept` header `*/*`.
+
 
 ## [0.3.0-rc1] - 2023-12-03
 ### Notable changes
