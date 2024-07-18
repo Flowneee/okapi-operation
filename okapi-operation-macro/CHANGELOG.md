@@ -3,7 +3,7 @@ All notable changes to this project will be documented in the changelog of the r
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
 
-## [Unreleased] - XXXX-XX-XX
+## [0.1.4] - 2024-07-18
 ### Changed
  - `#[request_body]` attribute can be used without braces.
 
