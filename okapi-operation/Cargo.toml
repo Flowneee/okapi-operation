@@ -36,10 +36,11 @@ serde = { version = "1", features = ["derive"] }
 default = ["macro"]
 
 macro = ["okapi-operation-macro"]
-
-axum-integration = ["axum", "paste", "tower"]
-
 yaml = ["serde_yaml"]
+
+axum = ["dep:axum", "paste", "tower", "okapi-operation-macro/axum"]
+# Deprecated, use feature `axum` instead
+axum-integration = ["axum"]
 
 [package.metadata.docs.rs]
 all-features = true

@@ -1,8 +1,9 @@
 # Integration with axum
 
 - [`Integration with axum`](#-integration-with-axum-)
-  * [Example](#example))
+  * [Example](#example)
   * [Customizing `OpenApiBuilder`](#customizing-openapibuilder)
+  * [Detecting request body and parameters from arguments](#detecting-request-body-and-parameters-from-arguments)
 
 This module provide integration with [`axum`] based on `#[openapi]` macro.
 
@@ -42,7 +43,7 @@ async fn echo_get(query: Query<Request>) -> Json<String> {
     tags = "echo"
 )]
 async fn echo_post(
-    #[request_body(description = "Echo data", required = true)] body: Json<Request>,
+    #[body(description = "Echo data", required = true)] body: Json<Request>,
 ) -> Json<String> {
     Json(body.0.data)
 }
@@ -71,7 +72,7 @@ If you need to customize builder template, you can either:
 
 ```no_run
 use axum::{extract::Query, Json};
-use okapi_operation::{axum_integration::*, *};
+use okapi_operation::{axum_integratExternal documentationion::*, *};
 use serde::Deserialize;
 
 #[tokio::main]
@@ -92,3 +93,11 @@ async fn main() {
     axum::serve(listener, app.into_make_service()).await.unwrap()
 }
 ```
+
+## Detecting request body and parameters from arguments
+
+Request body and some parameters can be automatically detected from function arguments without explicitly marking or describing them. Detection is done simply by type name, i.e. JSON body will be detected from `Json`, `axum::Json`, `reexported::axum::Json`, etc.
+
+Supported request bodies:
+
+* [`axum::extract::Json`]

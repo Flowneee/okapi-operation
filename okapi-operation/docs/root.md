@@ -5,7 +5,7 @@
   * [`openapi` macro](#openapi-macro)
     + [Minimal example](#minimal-example)
     + [Operation attributes](#operation-attributes)
-    + [External documentation](#external-documentation)
+    + [External documentation](#external-documentation) 
     + [Request parameters](#request-parameters)
       - [Header](#header)
       - [Query](#query)
@@ -14,6 +14,7 @@
       - [Reference](#reference)
     + [Multiple parameters](#multiple-parameters)
     + [Request body](#request-body)
+      - [Request body detection](#request-body-detection)
     + [Responses](#responses)
       - [From return type](#from-return-type)
       - [Ignore return type](#ignore-return-type)
@@ -66,7 +67,7 @@ async fn echo_get(query: Query<Request>) -> Json<String> {
     tags = "echo"
 )]
 async fn echo_post(
-    #[request_body(description = "Echo data", required = true)] body: Json<Request>,
+    #[body(description = "Echo data", required = true)] body: Json<Request>,
 ) -> Json<String> {
     Json(body.0.data)
 }
@@ -349,7 +350,7 @@ struct Request {
 
 #[openapi]
 async fn handler(
-    #[request_body(
+    #[body(
         description = "JSON with user ID",
         required = true,
     )] body: Json<Request>
@@ -357,13 +358,19 @@ async fn handler(
 
 #[openapi]
 async fn handler_with_request_body_override(
-    #[request_body(
+    #[body(
         description = "JSON with user ID",
         required = true,
         content = "Json<std::string::String>",
     )] body: Json<Request>
 ) {}
 ```
+
+#### Request body detection
+
+Request body can be automatically detected from well known types of supported frameworks. Refer to specific framework integration module for details.
+
+TODO: allow disabling this behaviour
 
 ### Responses
 
@@ -599,7 +606,7 @@ struct Request {
 
 #[openapi]
 async fn handler1(
-    #[request_body(
+    #[body(
         description = "JSON with user ID",
         required = true,
     )] body: Json<Request>
@@ -625,7 +632,7 @@ assert!(generate_openapi_specification().is_ok());
 ## Features
 
 * `macro`: enables re-import of [`openapi`] macro (enabled by default);
-* `axum-integration`: enables integration with [`axum`](https://github.com/tokio-rs/axum) crate (implement traits for certain `axum` types). See [`crate::axum_integration`] for details.
+* `axum`: enables integration with [`axum`](https://github.com/tokio-rs/axum) crate (implement traits for certain `axum` types). See [`crate::axum_integration`] for details.
 
 ## TODO
 

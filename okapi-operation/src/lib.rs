@@ -12,7 +12,7 @@ pub use okapi::{
 #[doc(inline)]
 pub use okapi_operation_macro::openapi;
 
-#[cfg(feature = "axum-integration")]
+#[cfg(feature = "axum")]
 pub mod axum_integration;
 
 pub use self::{

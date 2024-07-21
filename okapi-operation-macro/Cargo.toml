@@ -14,9 +14,14 @@ repository = "https://github.com/Flowneee/okapi-operation"
 proc-macro = true
 
 [dependencies]
+
 darling = "0.14.3"
+lazy_static = "1"
 proc-macro2 = "1"
 quote = "1"
 # TODO: bump to 2.x
 syn = { version = "1", features = ["full"] }
 thiserror = "1"
+
+[features]
+axum = []

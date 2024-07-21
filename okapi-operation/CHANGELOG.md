@@ -2,13 +2,19 @@
 All notable changes to this project will be documented in the changelog of the respective crates.
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
+## [Unreleased] - 2024-07-21
+### Added
+ - Feature `axum` as replacement for `axum-integration` (now considered deprecated);
+ - Request body detection from function arguments for specific frameworks (i.e. axum);
+ - `#[body]` attribute as replacement for `#[request_body]` (now considered deprecated).
+ 
 
 ## [0.3.0-rc2] - 2024-07-18
 ### Add
  - shorter version of `openapi_handler!` macro - `oh!`.
 
 ### Changed
- - `#[request_body]` attribute can be used without braces;
+ - `#[body]` attribute can be used without braces;
  - `openapi_handler` in axum integration now accept function with generic parameters;
  - switched to using `indexmap` in place of `hashmap` to make produced specs deterministic.
 

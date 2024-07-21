@@ -39,7 +39,7 @@ async fn echo_get(query: Query<Request>) -> Json<String> {
     tags = "echo"
 )]
 async fn echo_post(
-    #[request_body(description = "Echo data", required = true)] body: Json<Request>,
+    #[body(description = "Echo data", required = true)] body: Json<Request>,
 ) -> Json<String> {
     Json(body.0.data)
 }

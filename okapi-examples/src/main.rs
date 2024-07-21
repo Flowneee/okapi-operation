@@ -28,16 +28,28 @@ async fn echo_get(query: Query<Request>) -> Json<String> {
     tags = "echo"
 )]
 async fn echo_post(
-    #[request_body(description = "Echo data", required = true)] body: Json<Request>,
+    #[body(description = "Echo data", required = true)] body: Json<Request>,
 ) -> Json<String> {
+    Json(body.0.data)
+}
+
+// Detect schema from known types, Json in this case
+#[openapi(
+    summary = "Echo using PUT request",
+    operation_id = "echo_put",
+    tags = "echo"
+)]
+async fn echo_put(body: Json<Request>) -> Json<String> {
     Json(body.0.data)
 }
 
 #[tokio::main]
 async fn main() {
     let app = Router::new()
-        .route("/echo/get", get(openapi_handler!(echo_get)))
-        .route("/echo/post", post(openapi_handler!(echo_post)))
+        .route(
+            "/echo",
+            get(oh!(echo_get)).post(oh!(echo_post)).put(oh!(echo_put)),
+        )
         .finish_openapi("/openapi", "Demo", "1.0.0")
         .expect("no problem");
 

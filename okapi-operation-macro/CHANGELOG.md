@@ -3,6 +3,13 @@ All notable changes to this project will be documented in the changelog of the r
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
 
+## [Unreleased] - 2024-07-21
+### Added
+ - Feature `axum` for enable axum-specific functionality;
+ - Request body detection from function arguments for specific frameworks (i.e. axum);
+ - `#[body]` attribute as replacement for `#[request_body]` (now considered deprecated). 
+
+
 ## [0.1.4] - 2024-07-18
 ### Changed
  - `#[request_body]` attribute can be used without braces.
