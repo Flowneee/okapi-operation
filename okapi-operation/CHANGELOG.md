@@ -6,7 +6,8 @@ This project follows the [Semantic Versioning standard](https://semver.org/).
 ### Added
  - Feature `axum` as replacement for `axum-integration` (now considered deprecated);
  - Request body detection from function arguments for specific frameworks (i.e. axum);
- - `#[body]` attribute as replacement for `#[request_body]` (now considered deprecated).
+ - `#[body]` attribute as replacement for `#[request_body]` (now considered deprecated);
+ - `ToMediaTypes`/`ToResponses` implementations for string-like types (String, &'static str, ...) and bytes-like types (Bytes, Vec<u8>, ...), implemented in axum, and `axum::form::Form`.
  
 
 ## [0.3.0-rc2] - 2024-07-18

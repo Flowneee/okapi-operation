@@ -3,6 +3,7 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
 use syn::Meta;
 
+use super::cookie::{Cookie, COOKIE_ATTRIBUTE_NAME};
 use crate::{
     operation::{
         header::{Header, HEADER_ATTRIBUTE_NAME},
@@ -12,8 +13,6 @@ use crate::{
     },
     utils::{meta_to_meta_list, nested_meta_to_meta},
 };
-
-use super::cookie::{Cookie, COOKIE_ATTRIBUTE_NAME};
 
 // TODO: support cookie parameters
 // TODO: support parameters from function signature

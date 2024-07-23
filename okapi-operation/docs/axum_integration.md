@@ -72,7 +72,7 @@ If you need to customize builder template, you can either:
 
 ```no_run
 use axum::{extract::Query, Json};
-use okapi_operation::{axum_integratExternal documentationion::*, *};
+use okapi_operation::{axum_integration::*, *};
 use serde::Deserialize;
 
 #[tokio::main]
@@ -100,4 +100,6 @@ Request body and some parameters can be automatically detected from function arg
 
 Supported request bodies:
 
+* [`String`] (as `text/plain`)
 * [`axum::extract::Json`]
+* [`bytes::Bytes`] (as `application/octet_stream`)

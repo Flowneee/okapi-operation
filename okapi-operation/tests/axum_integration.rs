@@ -39,6 +39,33 @@ mod openapi {
 
         assert_eq!(body_schema, expected_schema);
     }
+
+    #[test]
+    fn string_body_detection() {
+        #[openapi]
+        async fn handle(_arg: String) {}
+
+        let schema = Router::<()>::new()
+            .route("/", get(oh!(handle)))
+            .generate_openapi_builder()
+            .build()
+            .expect("Schema generation shoildn't fail");
+
+        let operation = schema.paths["/"]
+            .clone()
+            .get
+            .expect("GET / should be present")
+            .request_body
+            .expect("GET / request body should be present");
+        let RefOr::Object(request_body) = operation else {
+            panic!("GET / request body should be RefOr::Object");
+        };
+
+        assert!(
+            request_body.content["text/plain"].clone().schema.is_none(),
+            "String body (text/plain) shouldn't have schema"
+        );
+    }
 }
 
 #[cfg(feature = "axum")]

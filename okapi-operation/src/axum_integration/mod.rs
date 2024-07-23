@@ -19,8 +19,11 @@ mod router;
 mod trait_impls;
 mod utils;
 
-use axum::response::{IntoResponse, Response};
-use axum::{extract::State, Json};
+use axum::{
+    extract::State,
+    response::{IntoResponse, Response},
+    Json,
+};
 use http::{
     header::{self, ACCEPT},
     HeaderMap, HeaderValue, StatusCode,
@@ -143,4 +146,4 @@ macro_rules! openapi_service {
     }
 }
 
-// tests in tests/axum_integration_macros.rs because of https://github.com/rust-lang/rust/issues/52234
+// tests in tests/axum_integration.rs because of https://github.com/rust-lang/rust/issues/52234

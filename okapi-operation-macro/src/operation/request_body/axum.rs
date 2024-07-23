@@ -6,8 +6,17 @@ use super::{RequestBody, RequestBodyAttrs};
 use crate::error::Error;
 
 lazy_static::lazy_static! {
+    // NOTE: `Form` is not enabled because it have different content types
+    // based on method https://docs.rs/axum/latest/axum/struct.Form.html#as-extractor
     static ref KNOWN_BODY_TYPES: HashSet<&'static str> = [
+        // std types
+        "String",
+
+        // axum types
         "Json",
+
+        // 3rd party types
+        "Bytes",
     ].into_iter().collect();
 }
 

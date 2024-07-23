@@ -15,14 +15,14 @@ pub use okapi_operation_macro::openapi;
 #[cfg(feature = "axum")]
 pub mod axum_integration;
 
+use okapi::openapi3::Operation;
+
 pub use self::{
     builder::OpenApiBuilder,
     components::{Components, ComponentsBuilder},
     to_media_types::ToMediaTypes,
     to_responses::ToResponses,
 };
-
-use okapi::openapi3::Operation;
 
 mod builder;
 mod components;
