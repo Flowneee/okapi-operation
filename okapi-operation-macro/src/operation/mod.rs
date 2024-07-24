@@ -124,6 +124,7 @@ fn build_openapi_generator_fn(
     let parameters = &attrs.parameters;
     let responses = &attrs.responses;
     quote! {
+        #[allow(non_snake_case_functions)]
         #vis fn #name(
             components: &mut Components
         ) -> std::result::Result<okapi::openapi3::Operation, anyhow::Error> {
