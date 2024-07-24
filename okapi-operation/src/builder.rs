@@ -146,6 +146,12 @@ impl OpenApiBuilder {
     pub fn build(&mut self) -> Result<OpenApi, anyhow::Error> {
         let mut spec = self.spec.clone();
 
+        self.operations.sort_by(|lkey, _, rkey, _| {
+            let lkey_str = (&lkey.0, lkey.1.as_str());
+            let rkey_str = (&rkey.0, rkey.1.as_str());
+            lkey_str.cmp(&rkey_str)
+        });
+
         for ((path, method), generator) in &self.operations {
             try_add_path(
                 &mut spec,
