@@ -1,6 +1,7 @@
+use darling::ast::NestedMeta;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::{Attribute, AttributeArgs, Meta, MetaList, MetaNameValue, NestedMeta};
+use syn::{punctuated::Punctuated, Attribute, Meta, MetaList, MetaNameValue, Token};
 
 use crate::error::Error;
 
@@ -9,19 +10,15 @@ pub(super) fn quote_option<T: ToTokens>(v: &Option<T>) -> TokenStream {
         .map_or(quote! { None }, |x| quote! { Some(#x.into()) })
 }
 
-pub(super) fn attribute_to_args(
-    attr: &Attribute,
-    allow_empty: bool,
-) -> Result<AttributeArgs, Error> {
-    if let Meta::List(list) = attr.parse_meta()? {
-        Ok(list.nested.into_iter().collect())
-    } else if allow_empty {
-        Ok(AttributeArgs::new())
-    } else {
-        Err(Error::syn_spanned(
-            attr,
-            "Empty attribute supported only at the top of fn item attributes",
-        ))
+pub(super) fn attribute_to_args(attr: &Attribute) -> Result<Vec<NestedMeta>, Error> {
+    match &attr.meta {
+        Meta::Path(_) => Ok(Vec::new()),
+        Meta::List(x) => Ok(x
+            .parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)?
+            .into_iter()
+            .map(NestedMeta::Meta)
+            .collect()),
+        Meta::NameValue(_) => Err(Error::syn_spanned(attr, "expected parentheses")),
     }
 }
 
@@ -29,7 +26,7 @@ pub(super) fn take_attributes(attrs: &mut Vec<Attribute>, attr_name: &str) -> Ve
     let mut non_matched_attrs = vec![];
     let mut result = vec![];
     for attr in attrs.drain(..) {
-        if attr.path.get_ident().map_or(false, |x| x == attr_name) {
+        if attr.path().get_ident().map_or(false, |x| x == attr_name) {
             result.push(attr);
         } else {
             non_matched_attrs.push(attr);
@@ -64,12 +61,5 @@ pub(super) fn meta_to_meta_name_value(meta: &Meta) -> Result<&MetaNameValue, dar
                 .unwrap_or_else(|| "<unknown>".into())
         ))
         .with_span(rest)),
-    }
-}
-
-pub(super) fn nested_meta_to_meta(nested_meta: &NestedMeta) -> Result<&Meta, darling::Error> {
-    match nested_meta {
-        NestedMeta::Meta(meta) => Ok(meta),
-        rest => Err(darling::Error::custom("should be NestedMeta::Meta").with_span(rest)),
     }
 }

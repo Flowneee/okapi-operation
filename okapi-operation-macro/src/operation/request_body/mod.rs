@@ -57,7 +57,7 @@ impl RequestBody {
 
         // Check attributes, removing matching
         for attr in pt.attrs.drain(..) {
-            if attr.path.get_ident().map_or(false, |x| {
+            if attr.path().get_ident().map_or(false, |x| {
                 x == REQUEST_BODY_ATTRIBUTE_NAME || x == REQUEST_BODY_ATTRIBUTE_NAME_DEPRECATED
             }) {
                 matched_attrs.push(attr);
@@ -76,7 +76,7 @@ impl RequestBody {
         let Some(attr) = matched_attrs.into_iter().next() else {
             return Ok(None);
         };
-        let parsed_attrs = RequestBodyAttrs::from_list(&attribute_to_args(&attr, true)?)?;
+        let parsed_attrs = RequestBodyAttrs::from_list(&attribute_to_args(&attr)?)?;
 
         Ok(Some(Self {
             attrs: parsed_attrs,

@@ -1,7 +1,7 @@
-use darling::FromMeta;
+use darling::{ast::NestedMeta, FromMeta};
 use proc_macro2::{Span, TokenStream};
 use quote::{quote, ToTokens};
-use syn::{AttributeArgs, Ident, ItemFn, Visibility};
+use syn::{Ident, ItemFn, Visibility};
 
 use self::{external_docs::ExternalDocs, request_body::RequestBody, response::Responses};
 use crate::{
@@ -87,9 +87,14 @@ impl ToTokens for OperationAttrs {
     }
 }
 
-pub(crate) fn openapi(mut attrs: AttributeArgs, mut input: ItemFn) -> Result<TokenStream, Error> {
+pub(crate) fn openapi(
+    attrs: proc_macro::TokenStream,
+    mut input: ItemFn,
+) -> Result<TokenStream, Error> {
+    let mut attrs = NestedMeta::parse_meta_list(attrs.into())?;
+
     for attr in take_attributes(&mut input.attrs, OPENAPI_ATTRIBUTE_NAME) {
-        attrs.extend(attribute_to_args(&attr, false)?);
+        attrs.extend(attribute_to_args(&attr)?);
     }
     let mut operation_attrs = OperationAttrs::from_list(&attrs)?;
     operation_attrs

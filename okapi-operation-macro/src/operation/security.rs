@@ -1,9 +1,9 @@
 use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::{quote, ToTokens};
-use syn::Meta;
+use syn::{punctuated::Punctuated, Expr, Meta, Token};
 
-use crate::utils::{meta_to_meta_list, meta_to_meta_name_value, nested_meta_to_meta};
+use crate::utils::{meta_to_meta_list, meta_to_meta_name_value};
 
 static SECURITY_SCHEME_ATTRIBUTE_NAME: &str = "security_scheme";
 static SECURITY_SCHEME_NAME_ATTRIBUTE_NAME: &str = "name";
@@ -25,16 +25,15 @@ impl FromMeta for Security {
         let meta_list = meta_to_meta_list(meta)?;
         let mut this = Self::default();
 
-        for nested_meta in meta_list.nested.iter() {
-            let meta = nested_meta_to_meta(nested_meta)?;
+        for meta in meta_list.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)? {
             let meta_ident = meta
                 .path()
                 .get_ident()
-                .ok_or_else(|| darling::Error::custom("Should have Ident").with_span(meta))?;
+                .ok_or_else(|| darling::Error::custom("Should have Ident").with_span(&meta))?;
 
             match meta_ident {
                 _ if meta_ident == SECURITY_SCHEME_ATTRIBUTE_NAME => {
-                    this.schemes.push(SecurityScheme::from_meta(meta)?)
+                    this.schemes.push(SecurityScheme::from_meta(&meta)?)
                 }
                 _ => {
                     return Err(darling::Error::custom("Unsupported type of parameter")
@@ -67,9 +66,8 @@ impl FromMeta for SecurityScheme {
         let meta_list = meta_to_meta_list(meta)?;
         let mut this = Self::default();
 
-        for nested_meta in meta_list.nested.iter() {
-            let meta = nested_meta_to_meta(nested_meta)?;
-            let meta = meta_to_meta_name_value(meta)?;
+        for meta in meta_list.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)? {
+            let meta = meta_to_meta_name_value(&meta)?;
             let meta_ident = meta
                 .path
                 .get_ident()
@@ -77,10 +75,22 @@ impl FromMeta for SecurityScheme {
 
             match meta_ident {
                 _ if meta_ident == SECURITY_SCHEME_NAME_ATTRIBUTE_NAME => {
-                    this.name = String::from_value(&meta.lit)?;
+                    let Expr::Lit(ref lit) = &meta.value else {
+                        return Err(darling::Error::custom(
+                            "Security scheme name should be string literal",
+                        )
+                        .with_span(meta_ident));
+                    };
+                    this.name = String::from_value(&lit.lit)?;
                 }
                 _ if meta_ident == SECURITY_SCHEME_SCOPES_ATTRIBUTE_NAME => {
-                    let val = String::from_value(&meta.lit)?;
+                    let Expr::Lit(ref lit) = &meta.value else {
+                        return Err(darling::Error::custom(
+                            "Security scheme scope should be string literal",
+                        )
+                        .with_span(meta_ident));
+                    };
+                    let val = String::from_value(&lit.lit)?;
                     this.scopes = val.split(',').map(|v| v.to_owned()).collect();
                 }
                 _ => {
