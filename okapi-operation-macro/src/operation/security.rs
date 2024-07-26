@@ -9,12 +9,12 @@ static SECURITY_SCHEME_ATTRIBUTE_NAME: &str = "security_scheme";
 static SECURITY_SCHEME_NAME_ATTRIBUTE_NAME: &str = "name";
 static SECURITY_SCHEME_SCOPES_ATTRIBUTE_NAME: &str = "scopes";
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 pub struct Security {
     schemes: Vec<SecurityScheme>,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 struct SecurityScheme {
     name: String,
     scopes: Vec<String>,
@@ -122,5 +122,59 @@ impl ToTokens for SecurityScheme {
                 vec![#(std::borrow::ToOwned::to_owned(#scopes)),*],
             )
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use assert_matches::assert_matches;
+    use syn::{parse_quote, ExprTuple, Meta};
+
+    use crate::utils::test_utils::assert_eq_tokens;
+
+    use super::*;
+
+    #[test]
+    fn parse_security_scheme() {
+        let name = "test_name".to_string();
+        let scopes = "scope1,scope2,scope3".to_string();
+
+        let input: Meta = parse_quote! { security_scheme(name = #name, scopes = #scopes) };
+
+        assert_eq!(
+            SecurityScheme::from_meta(&input).expect("Successfullt parsed"),
+            SecurityScheme {
+                name,
+                scopes: scopes.split(',').map(Into::into).collect()
+            }
+        );
+    }
+
+    #[test]
+    fn parse_security() {
+        let name1 = "test_name1".to_string();
+        let name2 = "test_name2".to_string();
+        let scopes = "scope1,scope2,scope3".to_string();
+
+        let input: Meta = parse_quote! { security(
+            security_scheme(name = #name1, scopes = #scopes),
+            security_scheme(name = #name2, scopes = #scopes)
+        ) };
+
+        assert_eq!(
+            Security::from_meta(&input).expect("Failed to parse"),
+            Security {
+                schemes: vec![
+                    SecurityScheme {
+                        name: name1,
+                        scopes: scopes.split(',').map(Into::into).collect()
+                    },
+                    SecurityScheme {
+                        name: name2,
+                        scopes: scopes.split(',').map(Into::into).collect()
+                    }
+                ]
+            }
+        );
     }
 }

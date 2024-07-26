@@ -14,8 +14,7 @@ repository = "https://github.com/Flowneee/okapi-operation"
 proc-macro = true
 
 [dependencies]
-
-darling = "0.20.10"
+darling = "0.20"
 lazy_static = "1"
 proc-macro2 = "1"
 quote = "1"
@@ -24,3 +23,6 @@ thiserror = "1"
 
 [features]
 axum = []
+
+[dev-dependencies]
+assert_matches = "1"

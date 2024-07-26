@@ -7,7 +7,8 @@ This project follows the [Semantic Versioning standard](https://semver.org/).
 ### Added
  - Feature `axum` for enable axum-specific functionality;
  - Request body detection from function arguments for specific frameworks (i.e. axum);
- - `#[body]` attribute as replacement for `#[request_body]` (now considered deprecated). 
+ - `#[body]` attribute as replacement for `#[request_body]` (now considered deprecated);
+ - Updates `syn` crate to version 2.
 
 
 ## [0.1.4] - 2024-07-18
