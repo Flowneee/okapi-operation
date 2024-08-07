@@ -27,7 +27,7 @@ impl ToTokens for ExternalDocs {
 
 #[cfg(test)]
 mod tests {
-    use syn::{parse_quote, ExprStruct, Meta};
+    use syn::{parse_quote, Meta};
 
     use super::*;
 

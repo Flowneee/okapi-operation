@@ -35,3 +35,11 @@ pub type Empty = ();
 // TODO: allow return RefOr<Operation>
 /// Operation generator signature.
 pub type OperationGenerator = fn(&mut Components) -> Result<Operation, anyhow::Error>;
+
+#[cfg(feature = "macro")]
+#[doc(hidden)]
+pub mod _macro_prelude {
+    pub use okapi;
+
+    pub use crate::{Components, ToMediaTypes, ToResponses};
+}

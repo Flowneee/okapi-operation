@@ -5,7 +5,7 @@ mod openapi {
     use okapi::{openapi3::RefOr, schemars::gen::SchemaGenerator};
     use okapi_operation::{
         axum_integration::{get, Router},
-        oh, openapi, Components, ToMediaTypes, ToResponses,
+        oh, openapi,
     };
 
     #[test]
@@ -75,7 +75,7 @@ mod openapi_handler {
     use http::Request;
     use okapi_operation::{
         axum_integration::{get, Router},
-        oh, openapi, openapi_handler, openapi_service, Components, ToResponses,
+        oh, openapi, openapi_handler, openapi_service,
     };
 
     #[test]

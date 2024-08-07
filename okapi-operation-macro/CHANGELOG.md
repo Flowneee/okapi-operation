@@ -8,7 +8,9 @@ This project follows the [Semantic Versioning standard](https://semver.org/).
  - Feature `axum` for enable axum-specific functionality;
  - Request body detection from function arguments for specific frameworks (i.e. axum);
  - `#[body]` attribute as replacement for `#[request_body]` (now considered deprecated);
- - Updates `syn` crate to version 2.
+ - Updates `syn` crate to version 2;
+ - `crate` attribute to support renaming base crate, by default `okapi_operation`;
+ - `#[openapi]` macro takes care of reimporting necessary types and traits from base crate.
 
 
 ## [0.1.4] - 2024-07-18

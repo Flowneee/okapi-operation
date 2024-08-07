@@ -45,7 +45,8 @@ use crate::*;
             description = "",
             content = "axum::Json<std::collections::HashMap<String, String>>"
         )
-    )
+    ),
+    crate = "crate"
 )]
 pub async fn serve_openapi_spec(spec: State<OpenApi>, headers: HeaderMap) -> Response {
     let accept_header = headers

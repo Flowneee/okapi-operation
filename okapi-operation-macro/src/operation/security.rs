@@ -127,10 +127,7 @@ impl ToTokens for SecurityScheme {
 
 #[cfg(test)]
 mod tests {
-    use assert_matches::assert_matches;
-    use syn::{parse_quote, ExprTuple, Meta};
-
-    use crate::utils::test_utils::assert_eq_tokens;
+    use syn::{parse_quote, Meta};
 
     use super::*;
 
