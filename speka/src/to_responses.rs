@@ -14,7 +14,7 @@ pub trait ToResponses {
 /// # Example
 ///
 /// ```rust,compile
-/// # use okapi_operation::*;
+/// # use speka::*;
 /// # impl_to_media_types_for_wrapper!(JsonWrapper<T>, "application/json");
 /// struct JsonWrapper<T>(T);
 ///

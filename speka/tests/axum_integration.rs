@@ -3,7 +3,7 @@
 mod openapi {
     use axum::Json;
     use okapi::{openapi3::RefOr, schemars::gen::SchemaGenerator};
-    use okapi_operation::{
+    use speka::{
         axum_integration::{get, Router},
         oh, openapi,
     };
@@ -73,7 +73,7 @@ mod openapi {
 mod openapi_handler {
     use axum::body::Body;
     use http::Request;
-    use okapi_operation::{
+    use speka::{
         axum_integration::{get, Router},
         oh, openapi, openapi_handler, openapi_service,
     };
@@ -90,7 +90,7 @@ mod openapi_handler {
     fn openapi_handler_path() {
         mod outer {
             pub mod inner {
-                use okapi_operation::*;
+                use speka::*;
 
                 #[openapi]
                 pub async fn handle() {}

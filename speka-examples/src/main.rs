@@ -1,5 +1,5 @@
 use axum::{extract::Query, Json};
-use okapi_operation::{axum_integration::*, *};
+use speka::{axum_integration::*, *};
 use serde::Deserialize;
 
 #[derive(Deserialize, JsonSchema)]

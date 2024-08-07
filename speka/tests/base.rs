@@ -1,9 +1,9 @@
-use okapi_operation::openapi;
+use speka::openapi;
 
 #[test]
 #[allow(unused)]
 fn crate_name_override() {
-    use okapi_operation as renamed_crate;
+    use speka as renamed_crate;
 
     #[openapi(crate = "renamed_crate")]
     async fn handle() {}

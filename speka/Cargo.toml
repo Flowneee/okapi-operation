@@ -1,5 +1,5 @@
 [package]
-name = "okapi-operation"
+name = "speka"
 description = "Procedural macro for generating OpenAPI operation specification (using okapi)"
 version = "0.3.0-rc3"
 authors = ["Andrey Kononov flowneee3@gmail.com"]
@@ -8,10 +8,10 @@ license = "MIT"
 keywords = ["rust", "openapi", "swagger", "axum"]
 categories = ["web-programming"]
 readme = "../README.md"
-repository = "https://github.com/Flowneee/okapi-operation"
+repository = "https://github.com/Flowneee/speka"
 
 [dependencies]
-okapi-operation-macro = { path = "../okapi-operation-macro", version = "0.2", optional = true }
+speka-macro = { path = "../speka-macro", version = "0.2", optional = true }
 
 anyhow = "1"
 bytes = "1.4"
@@ -36,10 +36,10 @@ serde = { version = "1", features = ["derive"] }
 [features]
 default = ["macro"]
 
-macro = ["okapi-operation-macro"]
+macro = ["speka-macro"]
 yaml = ["serde_yaml"]
 
-axum = ["dep:axum", "paste", "tower", "okapi-operation-macro/axum"]
+axum = ["dep:axum", "paste", "tower", "speka-macro/axum"]
 # Deprecated, use feature `axum` instead
 axum-integration = ["axum"]
 

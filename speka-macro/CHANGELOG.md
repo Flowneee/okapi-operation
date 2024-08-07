@@ -9,7 +9,7 @@ This project follows the [Semantic Versioning standard](https://semver.org/).
  - Request body detection from function arguments for specific frameworks (i.e. axum);
  - `#[body]` attribute as replacement for `#[request_body]` (now considered deprecated);
  - Updates `syn` crate to version 2;
- - `crate` attribute to support renaming base crate, by default `okapi_operation`;
+ - `crate` attribute to support renaming base crate, by default `speka`;
  - `#[openapi]` macro takes care of reimporting necessary types and traits from base crate.
  
 ### Removed

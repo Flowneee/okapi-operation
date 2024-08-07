@@ -1,6 +1,6 @@
 [package]
-name = "okapi-operation-macro"
-description = "Macro implementation for okapi-operation"
+name = "speka-macro"
+description = "Macro implementation for speka"
 version = "0.2.0"
 authors = ["Andrey Kononov flowneee3@gmail.com"]
 edition = "2021"
@@ -8,7 +8,7 @@ license = "MIT"
 keywords = ["rust", "openapi", "swagger", "axum"]
 categories = ["web-programming"]
 readme = "../README.md"
-repository = "https://github.com/Flowneee/okapi-operation"
+repository = "https://github.com/Flowneee/speka"
 
 [lib]
 proc-macro = true

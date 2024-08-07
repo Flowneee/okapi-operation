@@ -1,5 +1,5 @@
 [package]
-name = "okapi-examples"
+name = "speka-examples"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,5 +10,5 @@ axum = "0.7"
 axum-extra = { version = "0.9", features = ["typed-header"] }
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive"] }
-okapi-operation = { path = "../okapi-operation", features = ["axum", "yaml"] }
-okapi-operation-macro = { path = "../okapi-operation-macro", features = ["axum"] }
+speka = { path = "../speka", features = ["axum", "yaml"] }
+speka-macro = { path = "../speka-macro", features = ["axum"] }

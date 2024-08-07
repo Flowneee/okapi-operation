@@ -77,7 +77,7 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use okapi_operation::{*, axum_integration::*};
+    /// # use speka::{*, axum_integration::*};
     /// #[openapi]
     /// async fn handler() {}
     ///
@@ -134,7 +134,7 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use okapi_operation::{*, axum_integration::*};
+    /// # use speka::{*, axum_integration::*};
     /// #[openapi]
     /// async fn handler() {}
     /// let handler_router = Router::new().route("/", get(openapi_handler!(handler)));
@@ -184,7 +184,7 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use okapi_operation::{*, axum_integration::*};
+    /// # use speka::{*, axum_integration::*};
     /// #[openapi]
     /// async fn handler() {}
     /// let handler_router = Router::new().route("/another_handler", get(openapi_handler!(handler)));
@@ -368,7 +368,7 @@ where
     /// # Example
     ///
     /// ```rust
-    /// # use okapi_operation::{*, axum_integration::*};
+    /// # use speka::{*, axum_integration::*};
     /// #[openapi]
     /// async fn handler() {}
     ///

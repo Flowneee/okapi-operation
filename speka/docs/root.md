@@ -1,6 +1,6 @@
-# `okapi-operation`
+# `speka`
 
-- [`okapi-operation`](#-okapi-operation-)
+- [`speka`](#-speka-)
   * [Example (using axum, but without axum_integration feature)](#example-using-axum-but-without-axum_integration-feature)
   * [`openapi` macro](#openapi-macro)
     + [Minimal example](#minimal-example)
@@ -39,7 +39,7 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
-use okapi_operation::*;
+use speka::*;
 use serde::Deserialize;
 
 #[derive(Deserialize, JsonSchema)]
@@ -107,7 +107,7 @@ Since most attributes taken from OpenAPI specification directly, refer to [OpenA
 Macro doesn't have any mandatory attributes.
 
 ```compile
-# use okapi_operation::*;
+# use speka::*;
 #[openapi]
 async fn handler() {}
 ```
@@ -119,7 +119,7 @@ All attributes is translated into same fields of [`okapi::openapi3::Operation`].
 Tags is provided as single string, which later is separated by comma.
 
 ```no_run
-# use okapi_operation::*;
+# use speka::*;
 #[openapi(
     summary = "Simple handler",
     description = "Simple handler, demonstrating how to use operation attributes",
@@ -135,7 +135,7 @@ async fn handler() {}
 External documentation can be set for operation. It is translated to [`okapi::openapi3::ExternalDocs`].
 
 ```no_run
-# use okapi_operation::*;
+# use speka::*;
 #[openapi(
     external_docs(
         url = "https://example.com",
@@ -170,7 +170,7 @@ This definition translated to [`okapi::openapi3::Parameter`] with [`okapi::opena
 * schema (path, mandatory) - path to type of parameter.
 
 ```no_run
-# use okapi_operation::*;
+# use speka::*;
 #[openapi(
     parameters(
         header(
@@ -201,7 +201,7 @@ async fn handler() {}
 * schema (path, mandatory) - path to type of parameter.
 
 ```no_run
-# use okapi_operation::*;
+# use speka::*;
 #[openapi(
     parameters(
         query(
@@ -233,7 +233,7 @@ async fn handler() {}
 Unlike header and query parameters, all path parameters is mandatory.
 
 ```no_run
-# use okapi_operation::*;
+# use speka::*;
 #[openapi(
     parameters(
         path(
@@ -261,7 +261,7 @@ async fn handler() {}
 * schema (path, mandatory) - path to type of parameter.
 
 ```no_run
-# use okapi_operation::*;
+# use speka::*;
 #[openapi(
     parameters(
         cookie(
@@ -281,7 +281,7 @@ async fn handler() {}
 #### Reference
 
 ```no_run
-# use okapi_operation::*;
+# use speka::*;
 #[openapi(
     parameters(
         reference = "#/components/parameters/ReusableHeader"
@@ -295,7 +295,7 @@ async fn handler() {}
 Specifying multiple parameters is supported:
 
 ```no_run
-# use okapi_operation::*;
+# use speka::*;
 #[openapi(
     parameters(
         header(
@@ -338,7 +338,7 @@ Request body definition have following attributes:
 * content (path, optional) - path to type, which schema should be used. If not speified, argument's type is used.
 
 ```no_run
-# use okapi_operation::*;
+# use speka::*;
 # use okapi::schemars::*;
 # struct Json<T>(T);
 # impl_to_media_types_for_wrapper!(Json<T>, "application/json");
@@ -384,7 +384,7 @@ Responses can be:
 Return type should implement [`ToResponses`] trait.
 
 ```no_run
-# use okapi_operation::*;
+# use speka::*;
 # use okapi::schemars::*;
 # struct Json<T>(T);
 # impl_to_media_types_for_wrapper!(Json<T>, "application/json");
@@ -405,7 +405,7 @@ async fn handler() -> Json<Response> {
 If return type doesn't implement [`ToResponses`], it can be ignored with special attribute `ignore_return_type`:
 
 ```no_run
-# use okapi_operation::*;
+# use speka::*;
 #[openapi(
     responses(
         ignore_return_type = true,
@@ -433,7 +433,7 @@ Single response have following attributes:
 * headers (list, optional) - list of headers (definition is the same as in request parameters). References to header is also allowed.
 
 ```no_run
-# use okapi_operation::*;
+# use speka::*;
 # use okapi::schemars::*;
 # struct Json<T>(T);
 # impl_to_media_types_for_wrapper!(Json<T>, "application/json");
@@ -474,7 +474,7 @@ async fn handler() {
 Responses can be generated from type, which implement [`ToResponses`]:
 
 ```no_run
-# use okapi_operation::*;
+# use speka::*;
 # use okapi::schemars::*;
 # struct Json<T>(T);
 # impl_to_media_types_for_wrapper!(Json<T>, "application/json");
@@ -504,7 +504,7 @@ Reference to response have following attributes:
 * reference (string, mandatory).
 
 ```no_run
-# use okapi_operation::*;
+# use speka::*;
 #[openapi(
     responses(
         reference(
@@ -530,7 +530,7 @@ first occurence is used. Responses merged in following order:
 * from types.
 
 ```no_run
-# use okapi_operation::*;
+# use speka::*;
 # use okapi::schemars::*;
 # struct Json<T>(T);
 # impl_to_media_types_for_wrapper!(Json<T>, "application/json");
@@ -572,7 +572,7 @@ Security scheme have following attributes:
 If multiple schemes specified, they are combined as OR. AND is not currently supported.
 
 ```no_run
-# use okapi_operation::*;
+# use speka::*;
 #[openapi(
     security(
         security_scheme(
@@ -592,7 +592,7 @@ async fn handler() {}
 For convenience this crate provide builder-like [`OpenApiBuilder`] type for creating OpenAPI specification:
 
 ```rust
-# use okapi_operation::*;
+# use speka::*;
 # use okapi::schemars::*;
 # use http::Method;
 # struct Json<T>(T);
@@ -638,6 +638,6 @@ assert!(generate_openapi_specification().is_ok());
 
 * [ ] support examples on MediaType or Parameter (examples supported on types via `JsonSchema` macro)
 * [ ] support inferring schemas of parameters from function definitions
-* [ ] support for renaming or changing paths to okapi/schemars/okapi-operations in macro
+* [ ] support for renaming or changing paths to okapi/schemars/spekas in macro
 * [ ] more examples
 * [ ] ...

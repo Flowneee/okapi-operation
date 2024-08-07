@@ -10,7 +10,7 @@ pub use okapi::{
 };
 #[cfg(feature = "macro")]
 #[doc(inline)]
-pub use okapi_operation_macro::openapi;
+pub use speka_macro::openapi;
 
 #[cfg(feature = "axum")]
 pub mod axum_integration;

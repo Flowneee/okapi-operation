@@ -15,7 +15,7 @@ This is example from root of this crate, but this time with [`axum_integration`]
 
 ```no_run
 use axum::{extract::Query, Json};
-use okapi_operation::{axum_integration::*, *};
+use speka::{axum_integration::*, *};
 use serde::Deserialize;
 
 #[derive(Deserialize, JsonSchema)]
@@ -72,7 +72,7 @@ If you need to customize builder template, you can either:
 
 ```no_run
 use axum::{extract::Query, Json};
-use okapi_operation::{axum_integration::*, *};
+use speka::{axum_integration::*, *};
 use serde::Deserialize;
 
 #[tokio::main]

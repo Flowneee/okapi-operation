@@ -31,7 +31,7 @@ mod security;
 //  - support for generic functions
 
 static DEFAULT_OPENAPI_ATTRIBUTE_NAME: &str = "openapi";
-static DEFAULT_CRATE_NAME: &str = "okapi_operation";
+static DEFAULT_CRATE_NAME: &str = "speka";
 
 thread_local! {
     pub static MACRO_ATTRIBUTE_NAME: RefCell<String> = RefCell::new(DEFAULT_OPENAPI_ATTRIBUTE_NAME.into());

@@ -1,17 +1,17 @@
-# `okapi-operation`
+# `speka`
 
-[![Crates.io](https://img.shields.io/crates/v/okapi-operation)](https://crates.io/crates/okapi-operation)
-[![docs.rs](https://img.shields.io/docsrs/okapi-operation/latest)](https://docs.rs/okapi-operation/latest)
-![CI](https://github.com/Flowneee/okapi-operation/actions/workflows/ci.yml/badge.svg)
+[![Crates.io](https://img.shields.io/crates/v/speka)](https://crates.io/crates/speka)
+[![docs.rs](https://img.shields.io/docsrs/speka/latest)](https://docs.rs/speka/latest)
+![CI](https://github.com/Flowneee/speka/actions/workflows/ci.yml/badge.svg)
 
 Library which allow to generate OpenAPI's operation definitions (using types from `okapi` crate) with procedural
-macro `#[openapi]`.
+macro `#[openapi]` (formerly named `okapi-operation`, see https://github.com/Flowneee/speka/issues/17).
 
 ## Example (with axum-integration feature).
 
 ```rust,no_run
 use axum::{extract::Query, Json};
-use okapi_operation::{axum_integration::*, *};
+use speka::{axum_integration::*, *};
 use serde::Deserialize;
 
 #[derive(Deserialize, JsonSchema)]
@@ -70,6 +70,6 @@ fn main() {
 
 * [ ] support examples on MediaType or Parameter (examples supported on types via `JsonSchema` macro)
 * [ ] support inferring schemas of parameters from function definitions
-* [ ] support for renaming or changing paths to okapi/schemars/okapi-operations in macro
+* [ ] support for renaming or changing paths to okapi/schemars/spekas in macro
 * [ ] more examples
 * [ ] ...

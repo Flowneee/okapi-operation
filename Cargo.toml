@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "./okapi-operation-macro",
-    "./okapi-operation",
-    "./okapi-examples"
+    "./speka",
+    "./speka-examples",
+    "./speka-macro",
 ]
