@@ -2,7 +2,7 @@
 All notable changes to this project will be documented in the changelog of the respective crates.
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
-## [Unreleased] - 2024-07-21
+## [0.3.0-rc3] - 2024-08-07
 ### Added
  - Feature `axum` as replacement for `axum-integration` (now considered deprecated);
  - Request body detection from function arguments for specific frameworks (i.e. axum);

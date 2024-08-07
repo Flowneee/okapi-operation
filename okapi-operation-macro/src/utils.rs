@@ -22,6 +22,8 @@ pub(super) fn attribute_to_args(attr: &Attribute) -> Result<Vec<NestedMeta>, Err
     }
 }
 
+// TODO: use
+#[allow(unused)]
 pub(super) fn take_attributes(attrs: &mut Vec<Attribute>, attr_name: &str) -> Vec<Attribute> {
     let mut non_matched_attrs = vec![];
     let mut result = vec![];

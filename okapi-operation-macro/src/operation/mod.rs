@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use darling::{ast::NestedMeta, FromMeta};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote, ToTokens};
@@ -7,7 +9,7 @@ use self::{external_docs::ExternalDocs, request_body::RequestBody, response::Res
 use crate::{
     error::Error,
     operation::{parameters::Parameters, security::Security},
-    utils::{attribute_to_args, quote_option, take_attributes},
+    utils::quote_option,
     OPENAPI_FUNCTION_NAME_SUFFIX,
 };
 
@@ -30,6 +32,10 @@ mod security;
 
 static DEFAULT_OPENAPI_ATTRIBUTE_NAME: &str = "openapi";
 static DEFAULT_CRATE_NAME: &str = "okapi_operation";
+
+thread_local! {
+    pub static MACRO_ATTRIBUTE_NAME: RefCell<String> = RefCell::new(DEFAULT_OPENAPI_ATTRIBUTE_NAME.into());
+}
 
 #[derive(Debug, FromMeta)]
 struct OperationAttrs {
@@ -54,6 +60,11 @@ struct OperationAttrs {
 
     #[darling(default = "OperationAttrs::default_crate_name", rename = "crate")]
     crate_name: String,
+    #[darling(
+        default = "OperationAttrs::default_attribute_name",
+        rename = "rename_attribute"
+    )]
+    attribute_name: String,
 }
 
 impl ToTokens for OperationAttrs {
@@ -105,12 +116,11 @@ pub(crate) fn openapi(
     attrs: proc_macro::TokenStream,
     mut input: ItemFn,
 ) -> Result<TokenStream, Error> {
-    let mut attrs = NestedMeta::parse_meta_list(attrs.into())?;
-
-    for attr in take_attributes(&mut input.attrs, DEFAULT_OPENAPI_ATTRIBUTE_NAME) {
-        attrs.extend(attribute_to_args(&attr)?);
-    }
+    let attrs = NestedMeta::parse_meta_list(attrs.into())?;
     let mut operation_attrs = OperationAttrs::from_list(&attrs)?;
+
+    set_current_attribute_name(operation_attrs.attribute_name.clone());
+
     operation_attrs
         .responses
         .add_return_type(&input, operation_attrs.responses.ignore_return_type);
@@ -162,4 +172,14 @@ fn build_openapi_generator_fn(
             Ok(operation)
         }
     })
+}
+
+// TODO: use
+#[allow(unused)]
+fn current_attribute_name() -> String {
+    MACRO_ATTRIBUTE_NAME.with_borrow(|x| x.clone())
+}
+
+fn set_current_attribute_name(value: String) {
+    MACRO_ATTRIBUTE_NAME.set(value);
 }
