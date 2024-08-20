@@ -9,3 +9,4 @@ publish_crate() {
 
 publish_crate speka-macro
 publish_crate speka
+publish_crate speka-axum

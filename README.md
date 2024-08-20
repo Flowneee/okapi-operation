@@ -1,4 +1,4 @@
-# `speka`
+# `speka` - OpenAPI generation utilities
 
 [![Crates.io](https://img.shields.io/crates/v/speka)](https://crates.io/crates/speka)
 [![docs.rs](https://img.shields.io/docsrs/speka/latest)](https://docs.rs/speka/latest)

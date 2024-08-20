@@ -1,0 +1,14 @@
+[package]
+name = "speka"
+description = "Procedural macro for generating OpenAPI operation specification (using okapi)"
+version = "0.3.0-rc3"
+authors = ["Andrey Kononov flowneee3@gmail.com"]
+edition = "2021"
+license = "MIT"
+keywords = ["rust", "openapi", "swagger", "axum"]
+categories = ["web-programming"]
+readme = "../README.md"
+repository = "https://github.com/Flowneee/speka"
+
+[dependencies]
+speka = { path = "../speka", version = "0.3.0-rc3", features = ["axum"] }
