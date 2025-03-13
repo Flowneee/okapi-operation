@@ -37,6 +37,19 @@ impl<S> From<AxumRouter<S>> for Router<S> {
     }
 }
 
+impl<S> Clone for Router<S>
+where
+    S: Clone + Send + Sync + 'static,
+{
+    fn clone(&self) -> Self {
+        Self {
+            axum_router: self.axum_router.clone(),
+            routes_operations_map: self.routes_operations_map.clone(),
+            openapi_builder_template: self.openapi_builder_template.clone(),
+        }
+    }
+}
+
 impl<S> Default for Router<S>
 where
     S: Clone + Send + Sync + 'static,
