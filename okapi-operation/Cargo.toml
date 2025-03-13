@@ -1,7 +1,7 @@
 [package]
 name = "okapi-operation"
 description = "Procedural macro for generating OpenAPI operation specification (using okapi)"
-version = "0.3.0-rc3"
+version = "0.3.0-rc4"
 authors = ["Andrey Kononov flowneee3@gmail.com"]
 edition = "2021"
 license = "MIT"
