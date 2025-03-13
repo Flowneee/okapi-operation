@@ -28,7 +28,7 @@ pub(super) fn take_attributes(attrs: &mut Vec<Attribute>, attr_name: &str) -> Ve
     let mut non_matched_attrs = vec![];
     let mut result = vec![];
     for attr in attrs.drain(..) {
-        if attr.path().get_ident().map_or(false, |x| x == attr_name) {
+        if attr.path().get_ident().is_some_and(|x| x == attr_name) {
             result.push(attr);
         } else {
             non_matched_attrs.push(attr);

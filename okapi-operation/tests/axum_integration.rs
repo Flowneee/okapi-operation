@@ -115,6 +115,7 @@ mod openapi_handler {
     #[test]
     fn openapi_handler_typed() {
         #[openapi]
+        #[allow(clippy::extra_unused_type_parameters)]
         async fn handle<T>() {}
 
         let _ = Router::<()>::new().route("/", get(openapi_handler!(handle::<()>)));

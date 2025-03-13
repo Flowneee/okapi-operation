@@ -3,6 +3,10 @@ All notable changes to this project will be documented in the changelog of the r
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
 
+## [0.3.0-rc4] - 2025-03-13
+### Changed
+ - Use same version as `okapi-operation`.
+
 ## [0.2.0] - 2024-08-07
 ### Added
  - Feature `axum` for enable axum-specific functionality;

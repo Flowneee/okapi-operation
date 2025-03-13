@@ -2,6 +2,10 @@
 All notable changes to this project will be documented in the changelog of the respective crates.
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
+## [0.3.0-rc4] - 2025-03-13
+### Added
+ - `Clone` impl for `Router` in `axum-integration` (#20).
+
 ## [0.3.0-rc3] - 2024-08-07
 ### Added
  - Feature `axum` as replacement for `axum-integration` (now considered deprecated);

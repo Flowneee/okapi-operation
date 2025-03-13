@@ -1,17 +1,17 @@
 [package]
 name = "okapi-operation"
 description = "Procedural macro for generating OpenAPI operation specification (using okapi)"
-version = "0.3.0-rc3"
-authors = ["Andrey Kononov flowneee3@gmail.com"]
-edition = "2021"
-license = "MIT"
-keywords = ["rust", "openapi", "swagger", "axum"]
-categories = ["web-programming"]
-readme = "../README.md"
-repository = "https://github.com/Flowneee/okapi-operation"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+readme.workspace = true
+repository.workspace = true
 
 [dependencies]
-okapi-operation-macro = { path = "../okapi-operation-macro", version = "0.2", optional = true }
+okapi-operation-macro = { path = "../okapi-operation-macro", version = "0.3.0-rc4", optional = true }
 
 anyhow = "1"
 bytes = "1.4"

@@ -57,7 +57,7 @@ impl RequestBody {
 
         // Check attributes, removing matching
         for attr in pt.attrs.drain(..) {
-            if attr.path().get_ident().map_or(false, |x| {
+            if attr.path().get_ident().is_some_and(|x| {
                 x == REQUEST_BODY_ATTRIBUTE_NAME || x == REQUEST_BODY_ATTRIBUTE_NAME_DEPRECATED
             }) {
                 matched_attrs.push(attr);
