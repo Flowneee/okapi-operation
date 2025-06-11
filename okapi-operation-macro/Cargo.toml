@@ -19,7 +19,7 @@ lazy_static = "1"
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "2", features = ["full"] }
-thiserror = "1"
+thiserror = "2"
 
 [features]
 axum = []
