@@ -15,7 +15,7 @@ proc-macro = true
 
 [dependencies]
 darling = "0.20"
-lazy_static = { version = "1", optional = true}
+lazy_static = "1"
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "2", features = ["full"] }
@@ -23,7 +23,6 @@ thiserror = "2"
 
 [features]
 axum = []
-legacy_lazy = ["lazy_static"]
 
 [dev-dependencies]
 assert_matches = "1"
