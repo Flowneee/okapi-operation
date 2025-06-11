@@ -38,6 +38,7 @@ macro = ["okapi-operation-macro"]
 yaml = ["serde_yaml"]
 
 axum = ["dep:axum", "paste", "tower", "okapi-operation-macro/axum"]
+legacy_lazy = ["okapi-operation-macro/legacy_lazy"]
 # Deprecated, use feature `axum` instead
 axum-integration = ["axum"]
 
