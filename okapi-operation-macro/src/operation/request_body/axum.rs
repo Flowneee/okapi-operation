@@ -1,10 +1,26 @@
 use std::collections::HashSet;
+#[cfg(not(feature = "legacy_lazy"))]
+use std::sync::LazyLock;
 
 use syn::{PatType, Type};
 
 use super::{RequestBody, RequestBodyAttrs};
 use crate::error::Error;
 
+#[cfg(not(feature = "legacy_lazy"))]
+// NOTE: `Form` is not enabled because it have different content types
+// based on method https://docs.rs/axum/latest/axum/struct.Form.html#as-extractor
+static KNOWN_BODY_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    [
+        "String", // std types
+        "Json",   // 3rd party types
+        "Bytes",  // 3rd party types
+    ]
+    .into_iter()
+    .collect()
+});
+
+#[cfg(feature = "legacy_lazy")]
 lazy_static::lazy_static! {
     // NOTE: `Form` is not enabled because it have different content types
     // based on method https://docs.rs/axum/latest/axum/struct.Form.html#as-extractor
