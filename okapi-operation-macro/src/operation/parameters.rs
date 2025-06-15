@@ -1,15 +1,15 @@
 use darling::FromMeta;
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
-use syn::{punctuated::Punctuated, Meta, Token};
+use quote::{ToTokens, quote};
+use syn::{Meta, Token, punctuated::Punctuated};
 
-use super::cookie::{Cookie, COOKIE_ATTRIBUTE_NAME};
+use super::cookie::{COOKIE_ATTRIBUTE_NAME, Cookie};
 use crate::{
     operation::{
-        header::{Header, HEADER_ATTRIBUTE_NAME},
-        path::{Path, PATH_ATTRIBUTE_NAME},
-        query::{Query, QUERY_ATTRIBUTE_NAME},
-        reference::{Reference, REFERENCE_ATTRIBUTE_NAME},
+        header::{HEADER_ATTRIBUTE_NAME, Header},
+        path::{PATH_ATTRIBUTE_NAME, Path},
+        query::{QUERY_ATTRIBUTE_NAME, Query},
+        reference::{REFERENCE_ATTRIBUTE_NAME, Reference},
     },
     utils::meta_to_meta_list,
 };

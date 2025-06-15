@@ -176,8 +176,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        axum_integration::{MethodRouter, Router},
         Components,
+        axum_integration::{MethodRouter, Router},
     };
 
     fn openapi_generator(_: &mut Components) -> Result<Operation, anyhow::Error> {

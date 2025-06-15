@@ -1,11 +1,11 @@
-use anyhow::{bail, Context};
+use anyhow::{Context, bail};
 use http::Method;
 use indexmap::IndexMap;
 use okapi::openapi3::{
     Contact, ExternalDocs, License, OpenApi, SecurityRequirement, SecurityScheme, Server, Tag,
 };
 
-use crate::{components::Components, OperationGenerator};
+use crate::{OperationGenerator, components::Components};
 
 /// OpenAPI specificatrion builder.
 #[derive(Clone)]

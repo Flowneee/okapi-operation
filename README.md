@@ -10,7 +10,7 @@ macro `#[openapi]`.
 ## Example (with axum-integration feature).
 
 ```rust,no_run
-use axum::{extract::Query, Json};
+use axum::{Json, extract::Query};
 use okapi_operation::{axum_integration::*, *};
 use serde::Deserialize;
 
@@ -51,25 +51,28 @@ fn main() {
         .finish_openapi("/openapi", "Demo", "1.0.0")
         .expect("no problem");
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    axum::serve(listener, app.into_make_service()).await.unwrap()
+    axum::serve(listener, app.into_make_service())
+        .await
+        .unwrap()
 }
 ```
 
 ## Features
 
-* `macro`: enables re-import of `#[openapi]` macro (enabled by default);
-* `axum-integration`: enables integration with `axum`(https://github.com/tokio-rs/axum) crate (implement traits for
+- `macro`: enables re-import of `#[openapi]` macro (enabled by default);
+- `axum-integration`: enables integration with `axum`(https://github.com/tokio-rs/axum) crate (implement traits for
   certain `axum` types):
-    * Compatibility with `axum`: since integration heavely rely on `axum` types, this crate will be compatible only with
-      few (maybe even one) last versions of `axum`;
-    * Currently supported `axum` versions: `0.7.x`.
-* `yaml`: enables ability to serve the spec in yaml format in case of present `Accept` header with `yaml` value.
+  - Compatibility with `axum`: since integration heavely rely on `axum` types, this crate will be compatible only with
+    few (maybe even one) last versions of `axum`;
+  - Currently supported `axum` versions: `0.7.x`.
+- `yaml`: enables ability to serve the spec in yaml format in case of present `Accept` header with `yaml` value.
   Otherwise, in case of values `json|*/*` or empty, `json`'s being served (currently affects only `axum-integration`).
 
 ## TODO
 
-* [ ] support examples on MediaType or Parameter (examples supported on types via `JsonSchema` macro)
-* [ ] support inferring schemas of parameters from function definitions
-* [ ] support for renaming or changing paths to okapi/schemars/okapi-operations in macro
-* [ ] more examples
-* [ ] ...
+- [ ] support examples on MediaType or Parameter (examples supported on types via `JsonSchema` macro)
+- [ ] support inferring schemas of parameters from function definitions
+- [ ] support for renaming or changing paths to okapi/schemars/okapi-operations in macro
+- [ ] more examples
+- [ ] introduce MSRV policy
+- [ ] ...

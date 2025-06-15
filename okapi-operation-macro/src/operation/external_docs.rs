@@ -1,6 +1,6 @@
 use darling::FromMeta;
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 
 use crate::utils::quote_option;
 
@@ -27,7 +27,7 @@ impl ToTokens for ExternalDocs {
 
 #[cfg(test)]
 mod tests {
-    use syn::{parse_quote, Meta};
+    use syn::{Meta, parse_quote};
 
     use super::*;
 

@@ -1,14 +1,13 @@
-use axum::{response::Html, Form, Json};
+use axum::{Form, Json, response::Html};
 use mime::{APPLICATION_JSON, APPLICATION_WWW_FORM_URLENCODED, TEXT_HTML};
 use okapi::{
-    map,
+    Map, map,
     openapi3::{MediaType, RefOr, Response, Responses},
-    Map,
 };
 
 use crate::{
-    impl_to_media_types_for_wrapper, impl_to_responses_for_wrapper, Components, ToMediaTypes,
-    ToResponses,
+    Components, ToMediaTypes, ToResponses, impl_to_media_types_for_wrapper,
+    impl_to_responses_for_wrapper,
 };
 
 // Json

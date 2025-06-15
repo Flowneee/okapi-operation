@@ -1,9 +1,9 @@
 # Integration with axum
 
 - [`Integration with axum`](#-integration-with-axum-)
-  * [Example](#example)
-  * [Customizing `OpenApiBuilder`](#customizing-openapibuilder)
-  * [Detecting request body and parameters from arguments](#detecting-request-body-and-parameters-from-arguments)
+  - [Example](#example)
+  - [Customizing `OpenApiBuilder`](#customizing-openapibuilder)
+  - [Detecting request body and parameters from arguments](#detecting-request-body-and-parameters-from-arguments)
 
 This module provide integration with [`axum`] based on `#[openapi]` macro.
 
@@ -67,8 +67,8 @@ By default [`Router`] have an empty [`OpenApiBuilder::default()`] inside, which 
 
 If you need to customize builder template, you can either:
 
-* access existing builder with [`Router::openapi_builder_template_mut`] (example below) or [`Router::update_openapi_builder_template`];
-* prepare your own builder and set it with [`Router::set_openapi_builder_template`].
+- access existing builder with [`Router::openapi_builder_template_mut`] (example below) or [`Router::update_openapi_builder_template`];
+- prepare your own builder and set it with [`Router::set_openapi_builder_template`].
 
 ```no_run
 use axum::{extract::Query, Json};
@@ -100,6 +100,6 @@ Request body and some parameters can be automatically detected from function arg
 
 Supported request bodies:
 
-* [`String`] (as `text/plain`)
-* [`axum::extract::Json`]
-* [`bytes::Bytes`] (as `application/octet_stream`)
+- [`String`] (as `text/plain`)
+- [`axum::extract::Json`]
+- [`bytes::Bytes`] (as `application/octet_stream`)

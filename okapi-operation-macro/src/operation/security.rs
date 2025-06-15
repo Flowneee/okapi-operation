@@ -1,7 +1,7 @@
 use darling::FromMeta;
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
-use syn::{punctuated::Punctuated, Expr, Meta, Token};
+use quote::{ToTokens, quote};
+use syn::{Expr, Meta, Token, punctuated::Punctuated};
 
 use crate::utils::{meta_to_meta_list, meta_to_meta_name_value};
 
@@ -37,7 +37,7 @@ impl FromMeta for Security {
                 }
                 _ => {
                     return Err(darling::Error::custom("Unsupported type of parameter")
-                        .with_span(meta_ident))
+                        .with_span(meta_ident));
                 }
             }
         }
@@ -95,7 +95,7 @@ impl FromMeta for SecurityScheme {
                 }
                 _ => {
                     return Err(darling::Error::custom("Unsupported type of parameter")
-                        .with_span(meta_ident))
+                        .with_span(meta_ident));
                 }
             }
         }
@@ -127,7 +127,7 @@ impl ToTokens for SecurityScheme {
 
 #[cfg(test)]
 mod tests {
-    use syn::{parse_quote, Meta};
+    use syn::{Meta, parse_quote};
 
     use super::*;
 

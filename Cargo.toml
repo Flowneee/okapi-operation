@@ -1,17 +1,17 @@
 [workspace.package]
-version = "0.3.0-rc4"
+version = "0.3.0"
 authors = ["Andrei Kononov flowneee3@gmail.com"]
-edition = "2021"
-license = "MIT"
-keywords = ["rust", "openapi", "swagger", "axum"]
 categories = ["web-programming"]
+edition = "2021"
+keywords = ["rust", "openapi", "swagger", "axum"]
+license = "MIT"
 readme = "../README.md"
 repository = "https://github.com/Flowneee/okapi-operation"
 
 [workspace]
 resolver = "2"
 members = [
-    "./okapi-operation-macro",
-    "./okapi-operation",
-    "./okapi-examples"
+  "./okapi-examples",
+  "./okapi-operation",
+  "./okapi-operation-macro",
 ]

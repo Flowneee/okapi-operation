@@ -1,32 +1,32 @@
 # `okapi-operation`
 
 - [`okapi-operation`](#-okapi-operation-)
-  * [Example (using axum, but without axum_integration feature)](#example-using-axum-but-without-axum_integration-feature)
-  * [`openapi` macro](#openapi-macro)
-    + [Minimal example](#minimal-example)
-    + [Operation attributes](#operation-attributes)
-    + [External documentation](#external-documentation) 
-    + [Request parameters](#request-parameters)
+  - [Example (using axum, but without axum_integration feature)](#example-using-axum-but-without-axum_integration-feature)
+  - [`openapi` macro](#openapi-macro)
+    - [Minimal example](#minimal-example)
+    - [Operation attributes](#operation-attributes)
+    - [External documentation](#external-documentation)
+    - [Request parameters](#request-parameters)
       - [Header](#header)
       - [Query](#query)
       - [Path](#path)
       - [Cookie](#cookie)
       - [Reference](#reference)
-    + [Multiple parameters](#multiple-parameters)
-    + [Request body](#request-body)
+    - [Multiple parameters](#multiple-parameters)
+    - [Request body](#request-body)
       - [Request body detection](#request-body-detection)
-    + [Responses](#responses)
+    - [Responses](#responses)
       - [From return type](#from-return-type)
       - [Ignore return type](#ignore-return-type)
       - [Manual definition](#manual-definition)
-        * [Single response](#single-response)
-        * [From type](#from-type)
+        - [Single response](#single-response)
+        - [From type](#from-type)
       - [Reference](#reference-1)
       - [Multiple responses](#multiple-responses)
-    + [Security scheme](#security-scheme)
-  * [Building OpenAPI specification](#building-openapi-specification)
-  * [Features](#features)
-  * [TODO](#todo)
+    - [Security scheme](#security-scheme)
+  - [Building OpenAPI specification](#building-openapi-specification)
+  - [Features](#features)
+  - [TODO](#todo)
 
 Crate which allow to generate OpenAPI's operation definitions (using types from [`okapi`] crate) with procedural macro [`openapi`].
 
@@ -149,10 +149,10 @@ async fn handler() {}
 
 Request parameters can be:
 
-* HTTP header (`location: header`);
-* query parameter (`?param=value`) (`location: query`);
-* part of the path (`/api/user/:id`, where `:id` is parameter) (`location: path`);
-* reference to one of the above.
+- HTTP header (`location: header`);
+- query parameter (`?param=value`) (`location: query`);
+- part of the path (`/api/user/:id`, where `:id` is parameter) (`location: path`);
+- reference to one of the above.
 
 Parameters is defined in `[openapi]` macro. Inferring header from fucntion signature is not supported currently.
 
@@ -162,12 +162,12 @@ This definition translated to [`okapi::openapi3::Parameter`] with [`okapi::opena
 
 `header` have following attributes:
 
-* name (string, mandatory);
-* description (string, optional);
-* required (bool, optional);
-* deprecated (bool, optional);
-* style (string, optional) - how parameter is serialized (see [OpenAPI docs](https://swagger.io/docs/specification/serialization/));
-* schema (path, mandatory) - path to type of parameter.
+- name (string, mandatory);
+- description (string, optional);
+- required (bool, optional);
+- deprecated (bool, optional);
+- style (string, optional) - how parameter is serialized (see [OpenAPI docs](https://swagger.io/docs/specification/serialization/));
+- schema (path, mandatory) - path to type of parameter.
 
 ```no_run
 # use okapi_operation::*;
@@ -190,15 +190,15 @@ async fn handler() {}
 
 `query` have following attributes:
 
-* name (string, mandatory);
-* description (string, optional);
-* required (bool, optional);
-* deprecated (bool, optional);
-* style (string, optional) - how parameter is serialized (https://swagger.io/docs/specification/serialization/);
-* explode (bool, optional) - specifies whether arrays and objects should generate separate parameters for each array item or object property;
-* allow_empty_value (bool, optional) - allow empty value for this parameter;
-* allow_reserved (bool, optional) - allow reserved characters `:/?#[]@!$&'()*+,;=` in parameter;
-* schema (path, mandatory) - path to type of parameter.
+- name (string, mandatory);
+- description (string, optional);
+- required (bool, optional);
+- deprecated (bool, optional);
+- style (string, optional) - how parameter is serialized (https://swagger.io/docs/specification/serialization/);
+- explode (bool, optional) - specifies whether arrays and objects should generate separate parameters for each array item or object property;
+- allow_empty_value (bool, optional) - allow empty value for this parameter;
+- allow_reserved (bool, optional) - allow reserved characters `:/?#[]@!$&'()*+,;=` in parameter;
+- schema (path, mandatory) - path to type of parameter.
 
 ```no_run
 # use okapi_operation::*;
@@ -224,11 +224,11 @@ async fn handler() {}
 
 `path` have following attributes:
 
-* name (string, mandatory);
-* description (string, optional);
-* deprecated (bool, optional);
-* style (string, optional) - how parameter is serialized (https://swagger.io/docs/specification/serialization/);
-* schema (path, mandatory) - path to type of parameter.
+- name (string, mandatory);
+- description (string, optional);
+- deprecated (bool, optional);
+- style (string, optional) - how parameter is serialized (https://swagger.io/docs/specification/serialization/);
+- schema (path, mandatory) - path to type of parameter.
 
 Unlike header and query parameters, all path parameters is mandatory.
 
@@ -252,13 +252,13 @@ async fn handler() {}
 
 `cookie` have following attributes:
 
-* name (string, mandatory);
-* description (string, optional);
-* required (bool, optional);
-* deprecated (bool, optional);
-* explode (bool, optional) - specifies whether arrays and objects should generate separate parameters for each array item or object property;
-* allow_empty_value (bool, optional) - allow empty value for this parameter;
-* schema (path, mandatory) - path to type of parameter.
+- name (string, mandatory);
+- description (string, optional);
+- required (bool, optional);
+- deprecated (bool, optional);
+- explode (bool, optional) - specifies whether arrays and objects should generate separate parameters for each array item or object property;
+- allow_empty_value (bool, optional) - allow empty value for this parameter;
+- schema (path, mandatory) - path to type of parameter.
 
 ```no_run
 # use okapi_operation::*;
@@ -329,13 +329,13 @@ async fn handler() {}
 
 ### Request body
 
-Request body is associated with one of function arguments and _by default_ it's schema is inferred from argument type. 
+Request body is associated with one of function arguments and _by default_ it's schema is inferred from argument type.
 
 Request body definition have following attributes:
 
-* description (string, optional);
-* required (bool, optional);
-* content (path, optional) - path to type, which schema should be used. If not speified, argument's type is used.
+- description (string, optional);
+- required (bool, optional);
+- content (path, optional) - path to type, which schema should be used. If not speified, argument's type is used.
 
 ```no_run
 # use okapi_operation::*;
@@ -376,8 +376,8 @@ TODO: allow disabling this behaviour
 
 Responses can be:
 
-* inferred from return type;
-* specified in [`openapi`] macro.
+- inferred from return type;
+- specified in [`openapi`] macro.
 
 #### From return type
 
@@ -427,10 +427,10 @@ Single response define response for a single HTTP status (or pattern). Schema of
 
 Single response have following attributes:
 
-* status (string, mandatory) - HTTP status (or pattern like 2XX, 3XX). To define defautl fallback type, use special `default` value;
-* description (string, optional);
-* content (path, mandatory) - path to type, which provide schemas for this response;
-* headers (list, optional) - list of headers (definition is the same as in request parameters). References to header is also allowed.
+- status (string, mandatory) - HTTP status (or pattern like 2XX, 3XX). To define defautl fallback type, use special `default` value;
+- description (string, optional);
+- content (path, mandatory) - path to type, which provide schemas for this response;
+- headers (list, optional) - list of headers (definition is the same as in request parameters). References to header is also allowed.
 
 ```no_run
 # use okapi_operation::*;
@@ -468,7 +468,6 @@ async fn handler() {
 }
 ```
 
-
 ##### From type
 
 Responses can be generated from type, which implement [`ToResponses`]:
@@ -500,8 +499,8 @@ async fn handler() {
 
 Reference to response have following attributes:
 
-* status (string, mandatory) - HTTP status (or pattern like 2XX, 3XX). To define defautl fallback type, use special `default` value;
-* reference (string, mandatory).
+- status (string, mandatory) - HTTP status (or pattern like 2XX, 3XX). To define defautl fallback type, use special `default` value;
+- reference (string, mandatory).
 
 ```no_run
 # use okapi_operation::*;
@@ -524,10 +523,10 @@ If mutliple manual responses is specified (or specified both return type and man
 they are all merged using [`okapi::merge::merge_responses`]. If multiple responses specified for same HTTP status,
 first occurence is used. Responses merged in following order:
 
-* from return type;
-* manual single responses;
-* references;
-* from types.
+- from return type;
+- manual single responses;
+- references;
+- from types.
 
 ```no_run
 # use okapi_operation::*;
@@ -566,8 +565,8 @@ async fn handler() -> Json<Response> {
 
 Security scheme have following attributes:
 
-* name (string, mandatory) - name of used security scheme;
-* scopes (string, optional) - comma separated list of scopes. Have meaning only for `OAuth2` and `OpenID Connect`.
+- name (string, mandatory) - name of used security scheme;
+- scopes (string, optional) - comma separated list of scopes. Have meaning only for `OAuth2` and `OpenID Connect`.
 
 If multiple schemes specified, they are combined as OR. AND is not currently supported.
 
@@ -631,13 +630,13 @@ assert!(generate_openapi_specification().is_ok());
 
 ## Features
 
-* `macro`: enables re-import of [`openapi`] macro (enabled by default);
-* `axum`: enables integration with [`axum`](https://github.com/tokio-rs/axum) crate (implement traits for certain `axum` types). See [`crate::axum_integration`] for details.
+- `macro`: enables re-import of [`openapi`] macro (enabled by default);
+- `axum`: enables integration with [`axum`](https://github.com/tokio-rs/axum) crate (implement traits for certain `axum` types). See [`crate::axum_integration`] for details.
 
 ## TODO
 
-* [ ] support examples on MediaType or Parameter (examples supported on types via `JsonSchema` macro)
-* [ ] support inferring schemas of parameters from function definitions
-* [ ] support for renaming or changing paths to okapi/schemars/okapi-operations in macro
-* [ ] more examples
-* [ ] ...
+- [ ] support examples on MediaType or Parameter (examples supported on types via `JsonSchema` macro)
+- [ ] support inferring schemas of parameters from function definitions
+- [ ] support for renaming or changing paths to okapi/schemars/okapi-operations in macro
+- [ ] more examples
+- [ ] ...

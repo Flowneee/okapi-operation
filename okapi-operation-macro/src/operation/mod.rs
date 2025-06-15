@@ -1,16 +1,16 @@
 use std::cell::RefCell;
 
-use darling::{ast::NestedMeta, FromMeta};
+use darling::{FromMeta, ast::NestedMeta};
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, ToTokens};
+use quote::{ToTokens, format_ident, quote};
 use syn::{Ident, ItemFn, Visibility};
 
 use self::{external_docs::ExternalDocs, request_body::RequestBody, response::Responses};
 use crate::{
+    OPENAPI_FUNCTION_NAME_SUFFIX,
     error::Error,
     operation::{parameters::Parameters, security::Security},
     utils::quote_option,
-    OPENAPI_FUNCTION_NAME_SUFFIX,
 };
 
 mod cookie;

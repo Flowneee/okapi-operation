@@ -1,15 +1,15 @@
 use std::ops::Deref;
 
 use darling::FromMeta;
-use quote::{quote, ToTokens};
+use quote::{ToTokens, quote};
 use syn::{
-    punctuated::Punctuated, token::Paren, ItemFn, Meta, Path, ReturnType, Token, Type, TypeTuple,
+    ItemFn, Meta, Path, ReturnType, Token, Type, TypeTuple, punctuated::Punctuated, token::Paren,
 };
 
 use crate::{
     operation::{
-        header::{Header, HEADER_ATTRIBUTE_NAME},
-        reference::{Reference, REFERENCE_ATTRIBUTE_NAME},
+        header::{HEADER_ATTRIBUTE_NAME, Header},
+        reference::{REFERENCE_ATTRIBUTE_NAME, Reference},
     },
     utils::meta_to_meta_list,
 };

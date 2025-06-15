@@ -1,7 +1,7 @@
 use darling::ast::NestedMeta;
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
-use syn::{punctuated::Punctuated, Attribute, Meta, MetaList, MetaNameValue, Token};
+use quote::{ToTokens, quote};
+use syn::{Attribute, Meta, MetaList, MetaNameValue, Token, punctuated::Punctuated};
 
 use crate::error::Error;
 

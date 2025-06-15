@@ -1,4 +1,4 @@
-use axum::{extract::Query, Json};
+use axum::{Json, extract::Query};
 use okapi_operation::{axum_integration::*, *};
 use serde::Deserialize;
 

@@ -1,4 +1,4 @@
-use okapi::{openapi3::MediaType, Map};
+use okapi::{Map, openapi3::MediaType};
 
 use crate::Components;
 

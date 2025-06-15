@@ -4,7 +4,7 @@ mod openapi {
     use axum::Json;
     use okapi::{openapi3::RefOr, schemars::gen::SchemaGenerator};
     use okapi_operation::{
-        axum_integration::{get, Router},
+        axum_integration::{Router, get},
         oh, openapi,
     };
 
@@ -74,7 +74,7 @@ mod openapi_handler {
     use axum::body::Body;
     use http::Request;
     use okapi_operation::{
-        axum_integration::{get, Router},
+        axum_integration::{Router, get},
         oh, openapi, openapi_handler, openapi_service,
     };
 

@@ -1,8 +1,8 @@
 use std::{collections::HashMap, convert::Infallible, fmt};
 
 use axum::{
-    extract::Request, handler::Handler, http::Method, response::IntoResponse, routing::Route,
-    Router as AxumRouter,
+    Router as AxumRouter, extract::Request, handler::Handler, http::Method, response::IntoResponse,
+    routing::Route,
 };
 use tower::{Layer, Service};
 
@@ -429,8 +429,8 @@ mod tests {
 
     use super::*;
     use crate::{
-        axum_integration::{get, post, HandlerExt},
         Components,
+        axum_integration::{HandlerExt, get, post},
     };
 
     fn openapi_generator(_: &mut Components) -> Result<Operation, anyhow::Error> {

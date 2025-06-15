@@ -6,7 +6,7 @@ pub use paste::paste;
 pub use self::{
     handler_traits::{HandlerExt, HandlerWithOperation, ServiceExt, ServiceWithOperation},
     method_router::*,
-    router::{Router, DEFAULT_OPENAPI_PATH},
+    router::{DEFAULT_OPENAPI_PATH, Router},
 };
 
 #[cfg(feature = "yaml")]
@@ -20,13 +20,13 @@ mod trait_impls;
 mod utils;
 
 use axum::{
+    Json,
     extract::State,
     response::{IntoResponse, Response},
-    Json,
 };
 use http::{
-    header::{self, ACCEPT},
     HeaderMap, HeaderValue, StatusCode,
+    header::{self, ACCEPT},
 };
 use okapi::openapi3::OpenApi;
 

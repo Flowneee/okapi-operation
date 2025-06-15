@@ -1,8 +1,8 @@
 use okapi::{
     openapi3::{RefOr, SchemaObject, SecurityScheme},
     schemars::{
-        gen::{SchemaGenerator, SchemaSettings},
         JsonSchema,
+        gen::{SchemaGenerator, SchemaSettings},
     },
 };
 
