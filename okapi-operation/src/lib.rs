@@ -17,6 +17,8 @@ pub mod axum_integration;
 
 use okapi::openapi3::Operation;
 
+#[doc(hidden)]
+pub use self::builder::BuilderOptions;
 pub use self::{
     builder::OpenApiBuilder,
     components::{Components, ComponentsBuilder},
@@ -34,7 +36,8 @@ pub type Empty = ();
 
 // TODO: allow return RefOr<Operation>
 /// Operation generator signature.
-pub type OperationGenerator = fn(&mut Components) -> Result<Operation, anyhow::Error>;
+pub type OperationGenerator =
+    fn(&mut Components, &BuilderOptions) -> Result<Operation, anyhow::Error>;
 
 #[cfg(feature = "macro")]
 #[doc(hidden)]

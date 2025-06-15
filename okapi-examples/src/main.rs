@@ -10,7 +10,6 @@ struct Request {
 
 #[openapi(
     summary = "Echo using GET request",
-    operation_id = "echo_get",
     tags = "echo",
     parameters(
         query(name = "echo-data", required = true, schema = "std::string::String",),
@@ -22,11 +21,7 @@ async fn echo_get(query: Query<Request>) -> Json<String> {
     Json(query.0.data)
 }
 
-#[openapi(
-    summary = "Echo using POST request",
-    operation_id = "echo_post",
-    tags = "echo"
-)]
+#[openapi(summary = "Echo using POST request", tags = "echo")]
 async fn echo_post(
     #[body(description = "Echo data", required = true)] body: Json<Request>,
 ) -> Json<String> {

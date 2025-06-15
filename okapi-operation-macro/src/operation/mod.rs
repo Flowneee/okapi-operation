@@ -65,13 +65,28 @@ struct OperationAttrs {
         rename = "rename_attribute"
     )]
     attribute_name: String,
+
+    // Internal fields
+    #[darling(default, skip)]
+    inferred_operation_id: String,
 }
 
 impl ToTokens for OperationAttrs {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let summary = quote_option(&self.summary);
         let description = quote_option(&self.description);
-        let operation_id = quote_option(&self.operation_id);
+        let operation_id = {
+            let operation_id = quote_option(&self.operation_id);
+            let inferred_operation_id = &self.inferred_operation_id;
+
+            quote! {
+                if (builder_options.infer_operation_id) {
+                    #operation_id.or_else(|| Some(String::from(#inferred_operation_id)))
+                } else {
+                    #operation_id
+                }
+            }
+        };
         let external_docs = quote_option(&self.external_docs);
         let deprecated = &self.deprecated;
         let tags = {
@@ -118,9 +133,8 @@ pub(crate) fn openapi(
 ) -> Result<TokenStream, Error> {
     let attrs = NestedMeta::parse_meta_list(attrs.into())?;
     let mut operation_attrs = OperationAttrs::from_list(&attrs)?;
-
+    operation_attrs.inferred_operation_id = input.sig.ident.to_string();
     set_current_attribute_name(operation_attrs.attribute_name.clone());
-
     operation_attrs
         .responses
         .add_return_type(&input, operation_attrs.responses.ignore_return_type);
@@ -158,10 +172,10 @@ fn build_openapi_generator_fn(
     Ok(quote! {
         #[allow(non_snake_case, unused)]
         #vis fn #name(
-            components: &mut #crate_name::Components
+            components: &mut #crate_name::Components,
+            builder_options: &#crate_name::BuilderOptions
         ) -> std::result::Result<#crate_name::okapi::openapi3::Operation, anyhow::Error> {
             use #crate_name::_macro_prelude::*;
-
             let mut operation = okapi::openapi3::Operation {
                 #attrs
                 #request_body

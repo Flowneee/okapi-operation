@@ -10,7 +10,6 @@ use super::{
     get,
     method_router::{MethodRouter, MethodRouterOperations},
     operations::RoutesOperations,
-    utils::convert_axum_path_to_openapi,
 };
 use crate::OpenApiBuilder;
 
@@ -335,11 +334,7 @@ where
         let mut builder = self.openapi_builder_template.clone();
         // Don't use try_operations since duplicates should be checked
         // when mounting route to axum router.
-        builder.operations(
-            routes
-                .into_iter()
-                .map(|((x, y), z)| (convert_axum_path_to_openapi(&x), y, z)),
-        );
+        builder.operations(routes.into_iter().map(|((x, y), z)| (x, y, z)));
         builder
     }
 
@@ -404,11 +399,7 @@ where
         // when mounting route to axum router.
         let spec = self
             .generate_openapi_builder()
-            .operation(
-                convert_axum_path_to_openapi(serve_path),
-                Method::GET,
-                super::serve_openapi_spec__openapi,
-            )
+            .operation(serve_path, Method::GET, super::serve_openapi_spec__openapi)
             .title(title)
             .version(version)
             .build()?;
@@ -429,11 +420,14 @@ mod tests {
 
     use super::*;
     use crate::{
-        Components,
+        BuilderOptions, Components,
         axum_integration::{HandlerExt, get, post},
     };
 
-    fn openapi_generator(_: &mut Components) -> Result<Operation, anyhow::Error> {
+    fn openapi_generator(
+        _: &mut Components,
+        _: &BuilderOptions,
+    ) -> Result<Operation, anyhow::Error> {
         unimplemented!()
     }
 

@@ -17,7 +17,6 @@ mod method_router;
 mod operations;
 mod router;
 mod trait_impls;
-mod utils;
 
 use axum::{
     Json,

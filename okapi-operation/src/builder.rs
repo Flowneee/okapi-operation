@@ -1,4 +1,6 @@
-use anyhow::{Context, bail};
+use std::collections::HashSet;
+
+use anyhow::{Context, anyhow, bail};
 use http::Method;
 use indexmap::IndexMap;
 use okapi::openapi3::{
@@ -7,12 +9,34 @@ use okapi::openapi3::{
 
 use crate::{OperationGenerator, components::Components};
 
+#[derive(Clone)]
+pub struct BuilderOptions {
+    pub infer_operation_id: bool,
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for BuilderOptions {
+    fn default() -> Self {
+        Self {
+            infer_operation_id: false,
+        }
+    }
+}
+
+impl BuilderOptions {
+    pub fn infer_operation_id(&self) -> bool {
+        self.infer_operation_id
+    }
+}
+
 /// OpenAPI specificatrion builder.
 #[derive(Clone)]
 pub struct OpenApiBuilder {
     spec: OpenApi,
     components: Components,
     operations: IndexMap<(String, Method), OperationGenerator>,
+    known_operation_ids: HashSet<String>, // Used to validate operation ids
+    builder_options: BuilderOptions,
 }
 
 impl Default for OpenApiBuilder {
@@ -25,6 +49,8 @@ impl Default for OpenApiBuilder {
             spec,
             components: Components::new(Default::default()),
             operations: IndexMap::new(),
+            known_operation_ids: Default::default(),
+            builder_options: Default::default(),
         }
     }
 }
@@ -140,6 +166,65 @@ impl OpenApiBuilder {
         self
     }
 
+    /// Infer the operation id for every operation based on the function name.
+    ///
+    /// If the operation_id is specified in the macro, it will replace the inferred name.
+    pub fn set_infer_operation_id(&mut self, value: bool) -> &mut Self {
+        self.builder_options.infer_operation_id = value;
+        self
+    }
+
+    /// Add single operation.
+    pub fn add_operation(
+        &mut self,
+        path: &str,
+        method: Method,
+        generator: OperationGenerator,
+    ) -> Result<&mut Self, anyhow::Error> {
+        let operation_schema = generator(&mut self.components, &self.builder_options)?;
+
+        // Check operation id doesn't exists
+        if let Some(operation_id) = operation_schema.operation_id.as_ref() {
+            if self.known_operation_ids.contains(operation_id) {
+                return Err(anyhow!("Found duplicate operation_id {operation_id}."));
+            }
+            self.known_operation_ids.insert(operation_id.clone());
+        }
+
+        let path = self.spec.paths.entry(path.into()).or_default();
+        if method == Method::DELETE {
+            path.delete = Some(operation_schema);
+        } else if method == Method::GET {
+            path.get = Some(operation_schema);
+        } else if method == Method::HEAD {
+            path.head = Some(operation_schema);
+        } else if method == Method::OPTIONS {
+            path.options = Some(operation_schema);
+        } else if method == Method::PATCH {
+            path.patch = Some(operation_schema);
+        } else if method == Method::POST {
+            path.post = Some(operation_schema);
+        } else if method == Method::PUT {
+            path.put = Some(operation_schema);
+        } else if method == Method::TRACE {
+            path.trace = Some(operation_schema);
+        } else {
+            return Err(anyhow::anyhow!("Unsupported method {}", method));
+        }
+        Ok(self)
+    }
+
+    /// Add multiple operations.
+    pub fn add_operations(
+        &mut self,
+        operations: impl Iterator<Item = (String, Method, OperationGenerator)>,
+    ) -> Result<&mut Self, anyhow::Error> {
+        for (path, method, f) in operations {
+            self.add_operation(&path, method, f)?;
+        }
+        Ok(self)
+    }
+
     /// Generate [`okapi::openapi3::OpenApi`] specification.
     ///
     /// This method can be called repeatedly on the same object.
@@ -156,6 +241,7 @@ impl OpenApiBuilder {
             try_add_path(
                 &mut spec,
                 &mut self.components,
+                &self.builder_options,
                 path,
                 method.clone(),
                 *generator,
@@ -241,11 +327,12 @@ impl OpenApiBuilder {
 fn try_add_path(
     spec: &mut OpenApi,
     components: &mut Components,
+    builder_options: &BuilderOptions,
     path: &str,
     method: Method,
     generator: OperationGenerator,
 ) -> Result<(), anyhow::Error> {
-    let operation_schema = generator(components)?;
+    let operation_schema = generator(components, builder_options)?;
     let path_str = path;
     let path = spec.paths.entry(path.into()).or_default();
     if method == Method::DELETE {
@@ -284,7 +371,7 @@ fn ensure_builder_deterministic() {
     for _ in 0..100 {
         let mut builder = OpenApiBuilder::new("title", "version");
         for i in 0..2 {
-            builder.operation(format!("/path/{}", i), Method::GET, |_| {
+            builder.operation(format!("/path/{}", i), Method::GET, |_, _| {
                 Ok(Operation::default())
             });
         }
