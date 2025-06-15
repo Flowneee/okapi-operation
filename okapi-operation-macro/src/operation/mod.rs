@@ -1,14 +1,16 @@
-use darling::FromMeta;
-use proc_macro2::{Span, TokenStream};
-use quote::{quote, ToTokens};
-use syn::{AttributeArgs, Ident, ItemFn, Visibility};
+use std::cell::RefCell;
+
+use darling::{FromMeta, ast::NestedMeta};
+use proc_macro2::TokenStream;
+use quote::{ToTokens, format_ident, quote};
+use syn::{Ident, ItemFn, Visibility};
 
 use self::{external_docs::ExternalDocs, request_body::RequestBody, response::Responses};
 use crate::{
+    OPENAPI_FUNCTION_NAME_SUFFIX,
     error::Error,
     operation::{parameters::Parameters, security::Security},
-    utils::{attribute_to_args, quote_option, remove_attributes},
-    OPENAPI_FUNCTION_NAME_SUFFIX,
+    utils::quote_option,
 };
 
 mod cookie;
@@ -28,7 +30,12 @@ mod security;
 //  - support ToResponses for Result
 //  - support for generic functions
 
-static OPENAPI_ATTRIBUTE_NAME: &str = "openapi";
+static DEFAULT_OPENAPI_ATTRIBUTE_NAME: &str = "openapi";
+static DEFAULT_CRATE_NAME: &str = "okapi_operation";
+
+thread_local! {
+    pub static MACRO_ATTRIBUTE_NAME: RefCell<String> = RefCell::new(DEFAULT_OPENAPI_ATTRIBUTE_NAME.into());
+}
 
 #[derive(Debug, FromMeta)]
 struct OperationAttrs {
@@ -38,8 +45,6 @@ struct OperationAttrs {
     description: Option<String>,
     #[darling(default)]
     operation_id: Option<String>,
-    #[darling(default)]
-    inferred_operation_id: String,
     #[darling(default)]
     tags: Option<String>,
     #[darling(default)]
@@ -52,6 +57,18 @@ struct OperationAttrs {
     responses: Responses,
     #[darling(default)]
     security: Option<Security>,
+
+    #[darling(default = "OperationAttrs::default_crate_name", rename = "crate")]
+    crate_name: String,
+    #[darling(
+        default = "OperationAttrs::default_attribute_name",
+        rename = "rename_attribute"
+    )]
+    attribute_name: String,
+
+    // Internal fields
+    #[darling(default, skip)]
+    inferred_operation_id: String,
 }
 
 impl ToTokens for OperationAttrs {
@@ -100,18 +117,30 @@ impl ToTokens for OperationAttrs {
     }
 }
 
-pub(crate) fn openapi(mut attrs: AttributeArgs, mut input: ItemFn) -> Result<TokenStream, Error> {
-    for attr in remove_attributes(&mut input.attrs, OPENAPI_ATTRIBUTE_NAME) {
-        attrs.extend(attribute_to_args(&attr)?);
+impl OperationAttrs {
+    fn default_crate_name() -> String {
+        DEFAULT_CRATE_NAME.into()
     }
+
+    fn default_attribute_name() -> String {
+        DEFAULT_OPENAPI_ATTRIBUTE_NAME.into()
+    }
+}
+
+pub(crate) fn openapi(
+    attrs: proc_macro::TokenStream,
+    mut input: ItemFn,
+) -> Result<TokenStream, Error> {
+    let attrs = NestedMeta::parse_meta_list(attrs.into())?;
     let mut operation_attrs = OperationAttrs::from_list(&attrs)?;
     operation_attrs.inferred_operation_id = input.sig.ident.to_string();
+    set_current_attribute_name(operation_attrs.attribute_name.clone());
     operation_attrs
         .responses
         .add_return_type(&input, operation_attrs.responses.ignore_return_type);
     let request_body = RequestBody::from_item_fn(&mut input)?;
     let openapi_generator_fn =
-        build_openapi_generator_fn(&input.sig.ident, &input.vis, operation_attrs, request_body);
+        build_openapi_generator_fn(&input.sig.ident, &input.vis, operation_attrs, request_body)?;
     let output = quote! {
         #input
 
@@ -125,11 +154,14 @@ fn build_openapi_generator_fn(
     vis: &Visibility,
     attrs: OperationAttrs,
     request_body: Option<RequestBody>,
-) -> TokenStream {
-    let name = Ident::new(
-        &format!("{}{}", handler_name, OPENAPI_FUNCTION_NAME_SUFFIX),
-        Span::call_site(),
-    );
+) -> Result<TokenStream, Error> {
+    let name = format_ident!("{}{}", handler_name, OPENAPI_FUNCTION_NAME_SUFFIX);
+
+    let crate_name: proc_macro2::TokenStream = attrs
+        .crate_name
+        .parse()
+        .map_err(|err| Error::custom(format!("Failed to parse provided crate rename: {err}")))?;
+
     let request_body = request_body.map(|x| {
         quote! {
             request_body: Some(okapi::openapi3::RefOr::Object(#x)),
@@ -137,11 +169,13 @@ fn build_openapi_generator_fn(
     });
     let parameters = &attrs.parameters;
     let responses = &attrs.responses;
-    quote! {
+    Ok(quote! {
+        #[allow(non_snake_case, unused)]
         #vis fn #name(
-            components: &mut Components,
-            builder_options: &InternalBuilderOptions
-        ) -> std::result::Result<okapi::openapi3::Operation, anyhow::Error> {
+            components: &mut #crate_name::Components,
+            builder_options: &#crate_name::BuilderOptions
+        ) -> std::result::Result<#crate_name::okapi::openapi3::Operation, anyhow::Error> {
+            use #crate_name::_macro_prelude::*;
             let mut operation = okapi::openapi3::Operation {
                 #attrs
                 #request_body
@@ -151,5 +185,15 @@ fn build_openapi_generator_fn(
             };
             Ok(operation)
         }
-    }
+    })
+}
+
+// TODO: use
+#[allow(unused)]
+fn current_attribute_name() -> String {
+    MACRO_ATTRIBUTE_NAME.with_borrow(|x| x.clone())
+}
+
+fn set_current_attribute_name(value: String) {
+    MACRO_ATTRIBUTE_NAME.set(value);
 }

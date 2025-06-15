@@ -1,61 +1,58 @@
 use std::marker::PhantomData;
 
-use axum::{handler::Handler, http::Request, response::IntoResponse};
+use axum::{extract::Request, handler::Handler, response::IntoResponse};
 use tower::Service;
 
 use crate::OperationGenerator;
 
 /// Wrapper around [`axum::handler::Handler`] with associated OpenAPI [`OperationGenerator`].
-pub struct HandlerWithOperation<H, T, S, B>
+pub struct HandlerWithOperation<H, T, S>
 where
-    H: Handler<T, S, B>,
+    H: Handler<T, S>,
 {
     pub(super) handler: H,
     pub(super) operation: Option<OperationGenerator>,
     _t: PhantomData<T>,
-    _b: PhantomData<B>,
     _s: PhantomData<S>,
 }
 
-impl<H, T, S, B> From<H> for HandlerWithOperation<H, T, S, B>
+impl<H, T, S> From<H> for HandlerWithOperation<H, T, S>
 where
-    H: Handler<T, S, B>,
+    H: Handler<T, S>,
 {
     fn from(value: H) -> Self {
         Self {
             handler: value,
             operation: None,
             _t: PhantomData,
-            _b: PhantomData,
             _s: PhantomData,
         }
     }
 }
 
-impl<H, T, S, B> HandlerWithOperation<H, T, S, B>
+impl<H, T, S> HandlerWithOperation<H, T, S>
 where
-    H: Handler<T, S, B>,
+    H: Handler<T, S>,
 {
     pub fn new(handler: H, operation: Option<OperationGenerator>) -> Self {
         Self {
             handler,
             operation,
             _t: PhantomData,
-            _b: PhantomData,
             _s: PhantomData,
         }
     }
 }
 
 /// Trait for converting [`axum::handler::Handler`] into wrapper.
-pub trait HandlerExt<H, T, S, B>
+pub trait HandlerExt<H, T, S>
 where
-    H: Handler<T, S, B>,
+    H: Handler<T, S>,
 {
-    fn into_handler_with_operation(self) -> HandlerWithOperation<H, T, S, B>;
+    fn into_handler_with_operation(self) -> HandlerWithOperation<H, T, S>;
 
     /// Add OpenAPI operation to handler.
-    fn with_openapi(self, operation: OperationGenerator) -> HandlerWithOperation<H, T, S, B>
+    fn with_openapi(self, operation: OperationGenerator) -> HandlerWithOperation<H, T, S>
     where
         Self: Sized,
     {
@@ -65,40 +62,39 @@ where
     }
 }
 
-impl<H, T, S, B> HandlerExt<H, T, S, B> for H
+impl<H, T, S> HandlerExt<H, T, S> for H
 where
-    H: Handler<T, S, B>,
+    H: Handler<T, S>,
 {
-    fn into_handler_with_operation(self) -> HandlerWithOperation<H, T, S, B> {
+    fn into_handler_with_operation(self) -> HandlerWithOperation<H, T, S> {
         HandlerWithOperation::new(self, None)
     }
 }
 
-impl<H, T, S, B> HandlerExt<H, T, S, B> for HandlerWithOperation<H, T, S, B>
+impl<H, T, S> HandlerExt<H, T, S> for HandlerWithOperation<H, T, S>
 where
-    H: Handler<T, S, B>,
+    H: Handler<T, S>,
 {
-    fn into_handler_with_operation(self) -> HandlerWithOperation<H, T, S, B> {
+    fn into_handler_with_operation(self) -> HandlerWithOperation<H, T, S> {
         self
     }
 }
 
 /// Wrapper around [`Service`] with associated OpenAPI [`OperationGenerator`].
-pub struct ServiceWithOperation<Svc, B, E>
+pub struct ServiceWithOperation<Svc, E>
 where
-    Svc: Service<Request<B>, Error = E> + Clone + Send + 'static,
+    Svc: Service<Request, Error = E> + Clone + Send + 'static,
     Svc::Response: IntoResponse + 'static,
     Svc::Future: Send + 'static,
 {
     pub(crate) service: Svc,
     pub(crate) operation: Option<OperationGenerator>,
-    _b: PhantomData<B>,
     _e: PhantomData<E>,
 }
 
-impl<Svc, B, E> ServiceWithOperation<Svc, B, E>
+impl<Svc, E> ServiceWithOperation<Svc, E>
 where
-    Svc: Service<Request<B>, Error = E> + Clone + Send + 'static,
+    Svc: Service<Request, Error = E> + Clone + Send + 'static,
     Svc::Response: IntoResponse + 'static,
     Svc::Future: Send + 'static,
 {
@@ -106,15 +102,14 @@ where
         Self {
             service,
             operation,
-            _b: PhantomData,
             _e: PhantomData,
         }
     }
 }
 
-impl<Svc, B, E> From<Svc> for ServiceWithOperation<Svc, B, E>
+impl<Svc, E> From<Svc> for ServiceWithOperation<Svc, E>
 where
-    Svc: Service<Request<B>, Error = E> + Clone + Send + 'static,
+    Svc: Service<Request, Error = E> + Clone + Send + 'static,
     Svc::Response: IntoResponse + 'static,
     Svc::Future: Send + 'static,
 {
@@ -124,17 +119,17 @@ where
 }
 
 /// Trait for converting [`Service`] into wrapper.
-pub trait ServiceExt<Svc, B, E>
+pub trait ServiceExt<Svc, E>
 where
-    Svc: Service<Request<B>, Error = E> + Clone + Send + 'static,
+    Svc: Service<Request, Error = E> + Clone + Send + 'static,
     Svc::Response: IntoResponse + 'static,
     Svc::Future: Send + 'static,
 {
-    fn into_service_with_operation(self) -> ServiceWithOperation<Svc, B, E>
+    fn into_service_with_operation(self) -> ServiceWithOperation<Svc, E>
 where;
 
     /// Add OpenAPI operation to service.
-    fn with_openapi(self, operation: OperationGenerator) -> ServiceWithOperation<Svc, B, E>
+    fn with_openapi(self, operation: OperationGenerator) -> ServiceWithOperation<Svc, E>
     where
         Self: Sized,
     {
@@ -144,45 +139,50 @@ where;
     }
 }
 
-impl<Svc, B, E> ServiceExt<Svc, B, E> for Svc
+impl<Svc, E> ServiceExt<Svc, E> for Svc
 where
-    Svc: Service<Request<B>, Error = E> + Clone + Send + 'static,
+    Svc: Service<Request, Error = E> + Clone + Send + 'static,
     Svc::Response: IntoResponse + 'static,
     Svc::Future: Send + 'static,
 {
-    fn into_service_with_operation(self) -> ServiceWithOperation<Svc, B, E> {
+    fn into_service_with_operation(self) -> ServiceWithOperation<Svc, E> {
         ServiceWithOperation::new(self, None)
     }
 }
 
-impl<Svc, B, E> ServiceExt<Svc, B, E> for ServiceWithOperation<Svc, B, E>
+impl<Svc, E> ServiceExt<Svc, E> for ServiceWithOperation<Svc, E>
 where
-    Svc: Service<Request<B>, Error = E> + Clone + Send + 'static,
+    Svc: Service<Request, Error = E> + Clone + Send + 'static,
     Svc::Response: IntoResponse + 'static,
     Svc::Future: Send + 'static,
 {
-    fn into_service_with_operation(self) -> ServiceWithOperation<Svc, B, E> {
+    fn into_service_with_operation(self) -> ServiceWithOperation<Svc, E> {
         self
     }
 }
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::let_underscore_future)]
+
     use std::convert::Infallible;
 
-    use axum::{body::Body, http::Method, response::Response, routing::MethodFilter};
+    use axum::{
+        body::Body, extract::Request, http::Method, response::Response, routing::MethodFilter,
+    };
     use okapi::openapi3::Operation;
+    use tokio::net::TcpListener;
     use tower::service_fn;
 
     use super::*;
     use crate::{
+        BuilderOptions, Components,
         axum_integration::{MethodRouter, Router},
-        Components, InternalBuilderOptions,
     };
 
     fn openapi_generator(
         _: &mut Components,
-        _: &InternalBuilderOptions,
+        _: &BuilderOptions,
     ) -> Result<Operation, anyhow::Error> {
         unimplemented!()
     }
@@ -210,20 +210,18 @@ mod tests {
 
         let make_service = app.into_make_service();
         let _ = async move {
-            axum::Server::bind(&"".parse().unwrap())
-                .serve(make_service)
-                .await
-                .unwrap()
+            let listener = TcpListener::bind("").await.unwrap();
+            axum::serve(listener, make_service).await.unwrap()
         };
     }
 
     #[test]
     fn service_with_operation() {
-        async fn service(_request: Request<Body>) -> Result<Response<Body>, Infallible> {
+        async fn service(_request: Request) -> Result<Response<Body>, Infallible> {
             Ok::<_, Infallible>(Response::new(Body::empty()))
         }
 
-        let service2 = service_fn(|_request: Request<Body>| async {
+        let service2 = service_fn(|_request: Request| async {
             Ok::<_, Infallible>(Response::new(Body::empty()))
         });
 
@@ -235,7 +233,6 @@ mod tests {
             .on_service(
                 MethodFilter::POST,
                 service2
-                    .clone()
                     .with_openapi(openapi_generator)
                     .with_openapi(openapi_generator),
             )
@@ -247,10 +244,8 @@ mod tests {
 
         let make_service = app.into_make_service();
         let _ = async move {
-            axum::Server::bind(&"".parse().unwrap())
-                .serve(make_service)
-                .await
-                .unwrap()
+            let listener = TcpListener::bind("").await.unwrap();
+            axum::serve(listener, make_service).await.unwrap()
         };
     }
 }

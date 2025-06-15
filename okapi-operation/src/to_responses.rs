@@ -39,8 +39,26 @@ macro_rules! impl_to_responses_for_wrapper {
     };
 }
 
+macro_rules! forward_impl_to_responses {
+    ($ty_for:ty, $ty_base:ty) => {
+        impl $crate::ToResponses for $ty_for {
+            fn generate(
+                components: &mut $crate::Components,
+            ) -> Result<$crate::okapi::openapi3::Responses, $crate::anyhow::Error> {
+                <$ty_base as $crate::ToResponses>::generate(components)
+            }
+        }
+    };
+}
+
 mod impls {
+    use std::borrow::Cow;
+
+    use bytes::{Bytes, BytesMut};
+    use okapi::openapi3::Response;
+
     use super::*;
+    use crate::ToMediaTypes;
 
     impl ToResponses for () {
         fn generate(_components: &mut Components) -> Result<Responses, anyhow::Error> {
@@ -84,4 +102,38 @@ mod impls {
             Ok(ok)
         }
     }
+
+    impl ToResponses for String {
+        fn generate(components: &mut Components) -> Result<Responses, anyhow::Error> {
+            Ok(Responses {
+                responses: okapi::map! {
+                    "200".into() => RefOr::Object(Response {
+                        content: <Self as ToMediaTypes>::generate(components)?,
+                        ..Default::default()
+                    })
+                },
+                ..Default::default()
+            })
+        }
+    }
+    forward_impl_to_responses!(&'static str, String);
+    forward_impl_to_responses!(Cow<'static, str>, String);
+
+    impl ToResponses for Vec<u8> {
+        fn generate(components: &mut Components) -> Result<Responses, anyhow::Error> {
+            Ok(Responses {
+                responses: okapi::map! {
+                    "200".into() => RefOr::Object(Response {
+                        content: <Self as ToMediaTypes>::generate(components)?,
+                        ..Default::default()
+                    })
+                },
+                ..Default::default()
+            })
+        }
+    }
+    forward_impl_to_responses!(&'static [u8], Vec<u8>);
+    forward_impl_to_responses!(Cow<'static, [u8]>, Vec<u8>);
+    forward_impl_to_responses!(Bytes, Vec<u8>);
+    forward_impl_to_responses!(BytesMut, Vec<u8>);
 }

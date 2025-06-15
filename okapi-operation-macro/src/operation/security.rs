@@ -1,20 +1,20 @@
 use darling::FromMeta;
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
-use syn::Meta;
+use quote::{ToTokens, quote};
+use syn::{Expr, Meta, Token, punctuated::Punctuated};
 
-use crate::utils::{meta_to_meta_list, meta_to_meta_name_value, nested_meta_to_meta};
+use crate::utils::{meta_to_meta_list, meta_to_meta_name_value};
 
 static SECURITY_SCHEME_ATTRIBUTE_NAME: &str = "security_scheme";
 static SECURITY_SCHEME_NAME_ATTRIBUTE_NAME: &str = "name";
 static SECURITY_SCHEME_SCOPES_ATTRIBUTE_NAME: &str = "scopes";
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 pub struct Security {
     schemes: Vec<SecurityScheme>,
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, PartialEq)]
 struct SecurityScheme {
     name: String,
     scopes: Vec<String>,
@@ -25,20 +25,19 @@ impl FromMeta for Security {
         let meta_list = meta_to_meta_list(meta)?;
         let mut this = Self::default();
 
-        for nested_meta in meta_list.nested.iter() {
-            let meta = nested_meta_to_meta(nested_meta)?;
+        for meta in meta_list.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)? {
             let meta_ident = meta
                 .path()
                 .get_ident()
-                .ok_or_else(|| darling::Error::custom("Should have Ident").with_span(meta))?;
+                .ok_or_else(|| darling::Error::custom("Should have Ident").with_span(&meta))?;
 
             match meta_ident {
                 _ if meta_ident == SECURITY_SCHEME_ATTRIBUTE_NAME => {
-                    this.schemes.push(SecurityScheme::from_meta(meta)?)
+                    this.schemes.push(SecurityScheme::from_meta(&meta)?)
                 }
                 _ => {
                     return Err(darling::Error::custom("Unsupported type of parameter")
-                        .with_span(meta_ident))
+                        .with_span(meta_ident));
                 }
             }
         }
@@ -67,9 +66,8 @@ impl FromMeta for SecurityScheme {
         let meta_list = meta_to_meta_list(meta)?;
         let mut this = Self::default();
 
-        for nested_meta in meta_list.nested.iter() {
-            let meta = nested_meta_to_meta(nested_meta)?;
-            let meta = meta_to_meta_name_value(meta)?;
+        for meta in meta_list.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)? {
+            let meta = meta_to_meta_name_value(&meta)?;
             let meta_ident = meta
                 .path
                 .get_ident()
@@ -77,15 +75,27 @@ impl FromMeta for SecurityScheme {
 
             match meta_ident {
                 _ if meta_ident == SECURITY_SCHEME_NAME_ATTRIBUTE_NAME => {
-                    this.name = String::from_value(&meta.lit)?;
+                    let Expr::Lit(ref lit) = &meta.value else {
+                        return Err(darling::Error::custom(
+                            "Security scheme name should be string literal",
+                        )
+                        .with_span(meta_ident));
+                    };
+                    this.name = String::from_value(&lit.lit)?;
                 }
                 _ if meta_ident == SECURITY_SCHEME_SCOPES_ATTRIBUTE_NAME => {
-                    let val = String::from_value(&meta.lit)?;
+                    let Expr::Lit(ref lit) = &meta.value else {
+                        return Err(darling::Error::custom(
+                            "Security scheme scope should be string literal",
+                        )
+                        .with_span(meta_ident));
+                    };
+                    let val = String::from_value(&lit.lit)?;
                     this.scopes = val.split(',').map(|v| v.to_owned()).collect();
                 }
                 _ => {
                     return Err(darling::Error::custom("Unsupported type of parameter")
-                        .with_span(meta_ident))
+                        .with_span(meta_ident));
                 }
             }
         }
@@ -112,5 +122,56 @@ impl ToTokens for SecurityScheme {
                 vec![#(std::borrow::ToOwned::to_owned(#scopes)),*],
             )
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use syn::{Meta, parse_quote};
+
+    use super::*;
+
+    #[test]
+    fn parse_security_scheme() {
+        let name = "test_name".to_string();
+        let scopes = "scope1,scope2,scope3".to_string();
+
+        let input: Meta = parse_quote! { security_scheme(name = #name, scopes = #scopes) };
+
+        assert_eq!(
+            SecurityScheme::from_meta(&input).expect("Successfullt parsed"),
+            SecurityScheme {
+                name,
+                scopes: scopes.split(',').map(Into::into).collect()
+            }
+        );
+    }
+
+    #[test]
+    fn parse_security() {
+        let name1 = "test_name1".to_string();
+        let name2 = "test_name2".to_string();
+        let scopes = "scope1,scope2,scope3".to_string();
+
+        let input: Meta = parse_quote! { security(
+            security_scheme(name = #name1, scopes = #scopes),
+            security_scheme(name = #name2, scopes = #scopes)
+        ) };
+
+        assert_eq!(
+            Security::from_meta(&input).expect("Failed to parse"),
+            Security {
+                schemes: vec![
+                    SecurityScheme {
+                        name: name1,
+                        scopes: scopes.split(',').map(Into::into).collect()
+                    },
+                    SecurityScheme {
+                        name: name2,
+                        scopes: scopes.split(',').map(Into::into).collect()
+                    }
+                ]
+            }
+        );
     }
 }

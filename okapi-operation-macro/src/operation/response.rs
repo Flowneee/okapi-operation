@@ -1,15 +1,17 @@
 use std::ops::Deref;
 
 use darling::FromMeta;
-use quote::{quote, ToTokens};
-use syn::{punctuated::Punctuated, token::Paren, ItemFn, Meta, Path, ReturnType, Type, TypeTuple};
+use quote::{ToTokens, quote};
+use syn::{
+    ItemFn, Meta, Path, ReturnType, Token, Type, TypeTuple, punctuated::Punctuated, token::Paren,
+};
 
 use crate::{
     operation::{
-        header::{Header, HEADER_ATTRIBUTE_NAME},
-        reference::{Reference, REFERENCE_ATTRIBUTE_NAME},
+        header::{HEADER_ATTRIBUTE_NAME, Header},
+        reference::{REFERENCE_ATTRIBUTE_NAME, Reference},
     },
-    utils::{meta_to_meta_list, nested_meta_to_meta},
+    utils::meta_to_meta_list,
 };
 
 // TODO: throw error if responses from different sources overlap OR merge them via oneOf
@@ -28,16 +30,15 @@ impl FromMeta for Headers {
     fn from_meta(meta: &Meta) -> Result<Self, darling::Error> {
         let meta_list = meta_to_meta_list(meta)?;
         let mut this = Self::default();
-        for nested_meta in meta_list.nested.iter() {
-            let meta = nested_meta_to_meta(nested_meta)?;
+        for meta in meta_list.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)? {
             let meta_ident = meta
                 .path()
                 .get_ident()
-                .ok_or_else(|| darling::Error::custom("Should have Ident").with_span(meta))?;
+                .ok_or_else(|| darling::Error::custom("Should have Ident").with_span(&meta))?;
             if meta_ident == HEADER_ATTRIBUTE_NAME {
-                this.headers.push(Header::from_meta(meta)?);
+                this.headers.push(Header::from_meta(&meta)?);
             } else if meta_ident == REFERENCE_ATTRIBUTE_NAME {
-                this.refs.push(Reference::from_meta(meta)?);
+                this.refs.push(Reference::from_meta(&meta)?);
             } else {
                 return Err(darling::Error::custom(
                     "Response's header definition should have 'header' or 'reference' Ident",
@@ -160,22 +161,21 @@ impl FromMeta for Responses {
     fn from_meta(meta: &Meta) -> Result<Self, darling::Error> {
         let meta_list = meta_to_meta_list(meta)?;
         let mut this = Self::default();
-        for nested_meta in meta_list.nested.iter() {
-            let meta = nested_meta_to_meta(nested_meta)?;
+        for meta in meta_list.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)? {
             let meta_ident = meta
                 .path()
                 .get_ident()
-                .ok_or_else(|| darling::Error::custom("Should have Ident").with_span(meta))?;
+                .ok_or_else(|| darling::Error::custom("Should have Ident").with_span(&meta))?;
             if meta_ident == RESPONSE_ATTRIBUTE_NAME {
-                let parsed = Response::from_meta(meta)?;
+                let parsed = Response::from_meta(&meta)?;
                 this.responses.push(parsed);
             } else if meta_ident == REFERENCE_ATTRIBUTE_NAME {
-                let parsed = RefResponse::from_meta(meta)?;
+                let parsed = RefResponse::from_meta(&meta)?;
                 this.refs.push(parsed);
             } else if meta_ident == IGNORE_RETURN_TYPE_ATTRIBUTE_NAME {
-                this.ignore_return_type = bool::from_meta(meta)?;
+                this.ignore_return_type = bool::from_meta(&meta)?;
             } else if meta_ident == FROM_TYPE_ATTRIBUTE_NAME {
-                this.from_type.push(Path::from_meta(meta)?);
+                this.from_type.push(Path::from_meta(&meta)?);
             } else {
                 return Err(darling::Error::custom(
                     "Response definition should have 'response', 'reference', 'from_type' or 'ignore_return_type' Ident",

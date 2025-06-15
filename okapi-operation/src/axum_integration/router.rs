@@ -1,45 +1,56 @@
 use std::{collections::HashMap, convert::Infallible, fmt};
 
 use axum::{
-    body::{Body, HttpBody},
-    handler::Handler,
-    http::{Method, Request},
-    response::IntoResponse,
+    Router as AxumRouter, extract::Request, handler::Handler, http::Method, response::IntoResponse,
     routing::Route,
-    Router as AxumRouter,
 };
 use tower::{Layer, Service};
-
-use crate::OpenApiBuilder;
 
 use super::{
     get,
     method_router::{MethodRouter, MethodRouterOperations},
     operations::RoutesOperations,
 };
+use crate::OpenApiBuilder;
+
+pub const DEFAULT_OPENAPI_PATH: &str = "/openapi";
 
 /// Drop-in replacement for [`axum::Router`], which supports OpenAPI operations.
 ///
 /// This replacement cannot be used as [`Service`] instead require explicit
 /// convertion of this type to `axum::Router`. This is done to ensure that
 /// OpenAPI specification generated and mounted.
-pub struct Router<S = (), B = Body> {
-    axum_router: AxumRouter<S, B>,
+pub struct Router<S = ()> {
+    axum_router: AxumRouter<S>,
     routes_operations_map: HashMap<String, MethodRouterOperations>,
+    openapi_builder_template: OpenApiBuilder,
 }
 
-impl<S, B> From<AxumRouter<S, B>> for Router<S, B> {
-    fn from(value: AxumRouter<S, B>) -> Self {
+impl<S> From<AxumRouter<S>> for Router<S> {
+    fn from(value: AxumRouter<S>) -> Self {
         Self {
             axum_router: value,
             routes_operations_map: Default::default(),
+            openapi_builder_template: OpenApiBuilder::default(),
         }
     }
 }
 
-impl<S, B> Default for Router<S, B>
+impl<S> Clone for Router<S>
 where
-    B: HttpBody + Send + 'static,
+    S: Clone + Send + Sync + 'static,
+{
+    fn clone(&self) -> Self {
+        Self {
+            axum_router: self.axum_router.clone(),
+            routes_operations_map: self.routes_operations_map.clone(),
+            openapi_builder_template: self.openapi_builder_template.clone(),
+        }
+    }
+}
+
+impl<S> Default for Router<S>
+where
     S: Clone + Send + Sync + 'static,
 {
     fn default() -> Self {
@@ -47,7 +58,7 @@ where
     }
 }
 
-impl<S, B> fmt::Debug for Router<S, B>
+impl<S> fmt::Debug for Router<S>
 where
     S: fmt::Debug,
 {
@@ -56,9 +67,8 @@ where
     }
 }
 
-impl<S, B> Router<S, B>
+impl<S> Router<S>
 where
-    B: HttpBody + Send + 'static,
     S: Clone + Send + Sync + 'static,
 {
     /// Create new router.
@@ -66,6 +76,7 @@ where
         Self {
             axum_router: AxumRouter::new(),
             routes_operations_map: HashMap::new(),
+            openapi_builder_template: OpenApiBuilder::default(),
         }
     }
 
@@ -85,16 +96,20 @@ where
     /// let app = Router::new().route("/", get(openapi_handler!(handler)));
     /// # async {
     /// # let (app, _) = app.into_parts();
-    /// # axum::Server::bind(&"".parse().unwrap()).serve(app.into_make_service()).await.unwrap();
+    /// # let listener = tokio::net::TcpListener::bind("").await.unwrap();
+    /// # axum::serve(listener, app.into_make_service()).await.unwrap()
     /// # };
     /// ```
     pub fn route<R>(mut self, path: &str, method_router: R) -> Self
     where
-        R: Into<MethodRouter<S, B>>,
+        R: Into<MethodRouter<S>>,
     {
         let method_router = method_router.into();
-        self.routes_operations_map
-            .insert(path.into(), method_router.operations);
+
+        // Merge operations
+        let s = self.routes_operations_map.entry(path.into()).or_default();
+        *s = s.clone().merge(method_router.operations);
+
         Self {
             axum_router: self
                 .axum_router
@@ -112,7 +127,7 @@ where
     /// TODO
     pub fn route_service<Svc>(self, path: &str, service: Svc) -> Self
     where
-        Svc: Service<Request<B>, Error = Infallible> + Clone + Send + 'static,
+        Svc: Service<Request, Error = Infallible> + Clone + Send + Sync + 'static,
         Svc::Response: IntoResponse,
         Svc::Future: Send + 'static,
     {
@@ -137,13 +152,13 @@ where
     /// let handler_router = Router::new().route("/", get(openapi_handler!(handler)));
     /// let app = Router::new().nest("/handle", handler_router);
     /// # async {
-    /// # let (app, _) = app.into_parts();
-    /// # axum::Server::bind(&"".parse().unwrap()).serve(app.into_make_service()).await.unwrap();
+    /// # let listener = tokio::net::TcpListener::bind("").await.unwrap();
+    /// # axum::serve(listener, app.into_parts().0.into_make_service()).await.unwrap()
     /// # };
     /// ```
     pub fn nest<R>(mut self, path: &str, router: R) -> Self
     where
-        R: Into<Router<S, B>>,
+        R: Into<Router<S>>,
     {
         let router = router.into();
         for (inner_path, operation) in router.routes_operations_map.into_iter() {
@@ -162,7 +177,7 @@ where
     /// For details see [`axum::Router::nest_service`].
     pub fn nest_service<Svc>(self, path: &str, svc: Svc) -> Self
     where
-        Svc: Service<Request<B>, Error = Infallible> + Clone + Send + 'static,
+        Svc: Service<Request, Error = Infallible> + Clone + Send + Sync + 'static,
         Svc::Response: IntoResponse,
         Svc::Future: Send + 'static,
     {
@@ -188,12 +203,13 @@ where
     /// let app = Router::new().route("/", get(openapi_handler!(handler))).merge(handler_router);
     /// # async {
     /// # let (app, _) = app.into_parts();
-    /// # axum::Server::bind(&"".parse().unwrap()).serve(app.into_make_service()).await.unwrap();
+    /// # let listener = tokio::net::TcpListener::bind("").await.unwrap();
+    /// # axum::serve(listener, app.into_make_service()).await.unwrap()
     /// # };
     /// ```
     pub fn merge<R>(mut self, other: R) -> Self
     where
-        R: Into<Router<S, B>>,
+        R: Into<Router<S>>,
     {
         let other = other.into();
         self.routes_operations_map
@@ -207,35 +223,36 @@ where
     /// Apply a [`tower::Layer`] to the router.
     ///
     /// For details see [`axum::Router::layer`].
-    pub fn layer<L, NewReqBody, NewResBody>(self, layer: L) -> Router<S, NewReqBody>
+    pub fn layer<L>(self, layer: L) -> Router<S>
     where
-        L: Layer<Route<B>> + Clone + Send + 'static,
-        L::Service: Service<Request<NewReqBody>> + Clone + Send + 'static,
-        <L::Service as Service<Request<NewReqBody>>>::Response: IntoResponse + 'static,
-        <L::Service as Service<Request<NewReqBody>>>::Error: Into<Infallible> + 'static,
-        <L::Service as Service<Request<NewReqBody>>>::Future: Send + 'static,
-        NewReqBody: HttpBody + 'static,
+        L: Layer<Route> + Clone + Send + Sync + 'static,
+        L::Service: Service<Request> + Clone + Send + Sync + 'static,
+        <L::Service as Service<Request>>::Response: IntoResponse + 'static,
+        <L::Service as Service<Request>>::Error: Into<Infallible> + 'static,
+        <L::Service as Service<Request>>::Future: Send + 'static,
     {
         Router {
             axum_router: self.axum_router.layer(layer),
             routes_operations_map: self.routes_operations_map,
+            openapi_builder_template: self.openapi_builder_template,
         }
     }
 
     /// Apply a [`tower::Layer`] to the router that will only run if the request matches a route.
     ///
     /// For details see [`axum::Router::route_layer`].
-    pub fn route_layer<L, NewResBody>(self, layer: L) -> Self
+    pub fn route_layer<L>(self, layer: L) -> Self
     where
-        L: Layer<Route<B>> + Clone + Send + 'static,
-        L::Service: Service<Request<B>> + Clone + Send + 'static,
-        <L::Service as Service<Request<B>>>::Response: IntoResponse + 'static,
-        <L::Service as Service<Request<B>>>::Error: Into<Infallible> + 'static,
-        <L::Service as Service<Request<B>>>::Future: Send + 'static,
+        L: Layer<Route> + Clone + Send + Sync + 'static,
+        L::Service: Service<Request> + Clone + Send + Sync + 'static,
+        <L::Service as Service<Request>>::Response: IntoResponse + 'static,
+        <L::Service as Service<Request>>::Error: Into<Infallible> + 'static,
+        <L::Service as Service<Request>>::Future: Send + 'static,
     {
         Router {
             axum_router: self.axum_router.route_layer(layer),
             routes_operations_map: self.routes_operations_map,
+            openapi_builder_template: self.openapi_builder_template,
         }
     }
 
@@ -249,7 +266,7 @@ where
     /// This method doesn't add anything to OpenaAPI spec.
     pub fn fallback<H, T>(self, handler: H) -> Self
     where
-        H: Handler<T, S, B>,
+        H: Handler<T, S>,
         T: 'static,
     {
         Router {
@@ -267,7 +284,7 @@ where
     /// This method doesn't add anything to OpenaAPI spec.
     pub fn fallback_service<Svc>(self, svc: Svc) -> Self
     where
-        Svc: Service<Request<B>, Error = Infallible> + Clone + Send + 'static,
+        Svc: Service<Request, Error = Infallible> + Clone + Send + Sync + 'static,
         Svc::Response: IntoResponse,
         Svc::Future: Send + 'static,
     {
@@ -280,15 +297,16 @@ where
     /// Provide the state for the router.
     ///
     /// For details see [`axum::Router::with_state`].
-    pub fn with_state<S2>(self, state: S) -> Router<S2, B> {
+    pub fn with_state<S2>(self, state: S) -> Router<S2> {
         Router {
             axum_router: self.axum_router.with_state(state),
             routes_operations_map: self.routes_operations_map,
+            openapi_builder_template: self.openapi_builder_template,
         }
     }
 
     /// Separate router into [`axum::Router`] and list of operations.
-    pub fn into_parts(self) -> (AxumRouter<S, B>, RoutesOperations) {
+    pub fn into_parts(self) -> (AxumRouter<S>, RoutesOperations) {
         (
             self.axum_router,
             RoutesOperations::new(self.routes_operations_map),
@@ -296,7 +314,7 @@ where
     }
 
     /// Get inner [`axum::Router`].
-    pub fn axum_router(&self) -> AxumRouter<S, B> {
+    pub fn axum_router(&self) -> AxumRouter<S> {
         self.axum_router.clone()
     }
 
@@ -305,10 +323,55 @@ where
         RoutesOperations::new(self.routes_operations_map.clone())
     }
 
-    // TODO: refactor, I don't like this API
-    /// Generate OpenAPI specification, mount it to inner router and return [`axum::Router`].
+    /// Generate [`OpenApiBuilder`] from current router.
     ///
-    /// This method is just for convenience and should be used after all routes mounted to root router.
+    /// Generated builder will be based on current builder template,
+    /// have all routes and types, present in this router.
+    ///
+    /// If template was not set, then [`OpenApiBuilder::default()`] is used.
+    pub fn generate_openapi_builder(&self) -> OpenApiBuilder {
+        let routes = self.routes_operations().openapi_operation_generators();
+        let mut builder = self.openapi_builder_template.clone();
+        // Don't use try_operations since duplicates should be checked
+        // when mounting route to axum router.
+        builder.operations(routes.into_iter().map(|((x, y), z)| (x, y, z)));
+        builder
+    }
+
+    /// Set [`OpenApiBuilder`] template for this router.
+    ///
+    /// By default [`OpenApiBuilder::default()`] is used.
+    pub fn set_openapi_builder_template(&mut self, builder: OpenApiBuilder) -> &mut Self {
+        self.openapi_builder_template = builder;
+        self
+    }
+
+    /// Update [`OpenApiBuilder`] template of this router.
+    ///
+    /// By default [`OpenApiBuilder::default()`] is used.
+    pub fn update_openapi_builder_template<F>(&mut self, f: F) -> &mut Self
+    where
+        F: FnOnce(&mut OpenApiBuilder),
+    {
+        f(&mut self.openapi_builder_template);
+        self
+    }
+
+    /// Get mutable reference to [`OpenApiBuilder`] template of this router.
+    ///
+    /// By default [`OpenApiBuilder::default()`] is set.
+    pub fn openapi_builder_template_mut(&mut self) -> &mut OpenApiBuilder {
+        &mut self.openapi_builder_template
+    }
+
+    /// Generate OpenAPI specification, mount it to inner router and return inner [`axum::Router`].
+    ///
+    /// Specification is based on [`OpenApiBuilder`] template, if one was set previously.
+    /// If template was not set, then [`OpenApiBuilder::default()`] is used.
+    ///
+    /// Note that passed `title` and `version` will override same values in OpenAPI builder template.
+    ///
+    /// By default specification served at [`DEFAULT_OPENAPI_PATH`] (`/openapi`).
     ///
     /// # Example
     ///
@@ -319,43 +382,51 @@ where
     ///
     /// let app = Router::new().route("/", get(openapi_handler!(handler)));
     /// # async {
-    /// let oas_builder = OpenApiBuilder::new("Demo", "1.0.0");
-    /// let app = app.route_openapi_specification("/openapi", oas_builder).expect("ok");
-    /// # axum::Server::bind(&"".parse().unwrap()).serve(app.into_make_service()).await.unwrap();
+    /// let app = app.finish_openapi("/openapi", "Demo", "1.0.0").expect("ok");
+    /// # let listener = tokio::net::TcpListener::bind("").await.unwrap();
+    /// # axum::serve(listener, app.into_make_service()).await.unwrap()
     /// # };
     /// ```
-    pub fn route_openapi_specification(
+    pub fn finish_openapi<'a>(
         mut self,
-        path: &str,
-        mut openapi_builder: OpenApiBuilder,
-    ) -> Result<AxumRouter<S, B>, anyhow::Error> {
-        let mut routes = self.routes_operations().openapi_operation_generators();
-        let _ = routes.insert(
-            (path.to_string(), Method::GET),
-            super::serve_openapi_spec__openapi,
-        );
-        let spec = openapi_builder
-            .add_operations(routes.into_iter().map(|((x, y), z)| (x, y, z)))?
-            .generate_spec()?;
-        self = self.route(path, get(super::serve_openapi_spec).with_state(spec));
+        serve_path: impl Into<Option<&'a str>>,
+        title: impl Into<String>,
+        version: impl Into<String>,
+    ) -> Result<AxumRouter<S>, anyhow::Error> {
+        let serve_path = serve_path.into().unwrap_or(DEFAULT_OPENAPI_PATH);
+
+        // Don't use try_operation since duplicates should be checked
+        // when mounting route to axum router.
+        let spec = self
+            .generate_openapi_builder()
+            .operation(serve_path, Method::GET, super::serve_openapi_spec__openapi)
+            .title(title)
+            .version(version)
+            .build()?;
+
+        self = self.route(serve_path, get(super::serve_openapi_spec).with_state(spec));
+
         Ok(self.axum_router)
     }
 }
 
 #[cfg(test)]
 mod tests {
+    #![allow(clippy::let_underscore_future)]
+
     use axum::{http::Method, routing::get as axum_get};
     use okapi::openapi3::Operation;
+    use tokio::net::TcpListener;
 
     use super::*;
     use crate::{
-        axum_integration::{get, HandlerExt},
-        Components, InternalBuilderOptions,
+        BuilderOptions, Components,
+        axum_integration::{HandlerExt, get, post},
     };
 
     fn openapi_generator(
         _: &mut Components,
-        _: &InternalBuilderOptions,
+        _: &BuilderOptions,
     ) -> Result<Operation, anyhow::Error> {
         unimplemented!()
     }
@@ -371,10 +442,8 @@ mod tests {
         assert!(meta.0.is_empty());
         let make_service = app.into_make_service();
         let _ = async move {
-            axum::Server::bind(&"".parse().unwrap())
-                .serve(make_service)
-                .await
-                .unwrap()
+            let listener = TcpListener::bind("").await.unwrap();
+            axum::serve(listener, make_service).await.unwrap()
         };
     }
 
@@ -392,6 +461,14 @@ mod tests {
             .route("/", get(|| async {}))
             .nest("/nested", router)
             .merge(router2)
+            .route(
+                "/my_path",
+                get((|| async {}).with_openapi(openapi_generator)),
+            )
+            .route(
+                "/my_path",
+                post((|| async {}).with_openapi(openapi_generator)),
+            )
             .into_parts();
 
         assert!(ops.get_path("/").is_none());
@@ -404,13 +481,15 @@ mod tests {
         assert!(ops.get_path("/nested/get_with_spec").is_some());
         assert!(ops.get("/nested/get_with_spec", &Method::GET).is_some());
         assert!(ops.get("/nested/get_with_spec", &Method::POST).is_none());
+        assert!(ops.get("/nested/get_with_spec", &Method::POST).is_none());
+
+        assert!(ops.get("/my_path", &Method::GET).is_some());
+        assert!(ops.get("/my_path", &Method::POST).is_some());
 
         let make_service = app.into_make_service();
         let _ = async move {
-            axum::Server::bind(&"".parse().unwrap())
-                .serve(make_service)
-                .await
-                .unwrap()
+            let listener = TcpListener::bind("").await.unwrap();
+            axum::serve(listener, make_service).await.unwrap()
         };
     }
 }

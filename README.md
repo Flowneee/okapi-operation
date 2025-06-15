@@ -9,8 +9,8 @@ macro `#[openapi]`.
 
 ## Example (with axum-integration feature).
 
-```rust,compile
-use axum::{extract::Query, Json};
+```rust,no_run
+use axum::{Json, extract::Query};
 use okapi_operation::{axum_integration::*, *};
 use serde::Deserialize;
 
@@ -39,46 +39,40 @@ async fn echo_get(query: Query<Request>) -> Json<String> {
     tags = "echo"
 )]
 async fn echo_post(
-    #[request_body(description = "Echo data", required = true)] body: Json<Request>,
+    #[body(description = "Echo data", required = true)] body: Json<Request>,
 ) -> Json<String> {
     Json(body.0.data)
 }
 
 fn main() {
-    // Here you can also add security schemes, other operations, modify internal OpenApi object.
-    let oas_builder = OpenApiBuilder::new("Demo", "1.0.0");
-    
     let app = Router::new()
         .route("/echo/get", get(openapi_handler!(echo_get)))
         .route("/echo/post", post(openapi_handler!(echo_post)))
-        .route_openapi_specification("/openapi", oas_builder)
+        .finish_openapi("/openapi", "Demo", "1.0.0")
         .expect("no problem");
-
-    let fut = async {
-        axum::Server::bind(&"0.0.0.0:3000".parse().unwrap())
-            .serve(app.into_make_service())
-            .await
-            .unwrap();
-    };
-    //tokio::runtime::Runtime::new().block_on(fut);
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    axum::serve(listener, app.into_make_service())
+        .await
+        .unwrap()
 }
 ```
 
 ## Features
 
-* `macro`: enables re-import of `#[openapi]` macro (enabled by default);
-* `axum-integration`: enables integration with `axum`(https://github.com/tokio-rs/axum) crate (implement traits for
+- `macro`: enables re-import of `#[openapi]` macro (enabled by default);
+- `axum-integration`: enables integration with `axum`(https://github.com/tokio-rs/axum) crate (implement traits for
   certain `axum` types):
-    * Compatibility with `axum`: since integration heavely rely on `axum` types, this crate will be compatible only with
-      few (maybe even one) last versions of `axum`;
-    * Currently supported `axum` versions: `0.6.x`.
-* `axum-yaml`: enables ability to serve the spec in yaml format in case of present `Accept` header with `yaml` value.
-  Otherwise, in case of values `json|*/*` or empty, `json`'s being served.
+  - Compatibility with `axum`: since integration heavely rely on `axum` types, this crate will be compatible only with
+    few (maybe even one) last versions of `axum`;
+  - Currently supported `axum` versions: `0.7.x`.
+- `yaml`: enables ability to serve the spec in yaml format in case of present `Accept` header with `yaml` value.
+  Otherwise, in case of values `json|*/*` or empty, `json`'s being served (currently affects only `axum-integration`).
 
 ## TODO
 
-* [ ] support examples on MediaType or Parameter (examples supported on types via `JsonSchema` macro)
-* [ ] support inferring schemas of parameters from function definitions
-* [ ] support for renaming or changing paths to okapi/schemars/okapi-operations in macro
-* [ ] more examples
-* [ ] ...
+- [ ] support examples on MediaType or Parameter (examples supported on types via `JsonSchema` macro)
+- [ ] support inferring schemas of parameters from function definitions
+- [ ] support for renaming or changing paths to okapi/schemars/okapi-operations in macro
+- [ ] more examples
+- [ ] introduce MSRV policy
+- [ ] ...

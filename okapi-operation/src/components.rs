@@ -1,8 +1,8 @@
 use okapi::{
     openapi3::{RefOr, SchemaObject, SecurityScheme},
     schemars::{
-        gen::{SchemaGenerator, SchemaSettings},
         JsonSchema,
+        gen::{SchemaGenerator, SchemaSettings},
     },
 };
 
@@ -47,6 +47,7 @@ impl ComponentsBuilder {
 }
 
 /// Storage for reusable components (schemas/parameters/responses/...).
+#[derive(Clone)]
 pub struct Components {
     generator: SchemaGenerator,
     components: okapi::openapi3::Components,
@@ -69,7 +70,7 @@ impl Components {
     }
 
     /// Add security scheme to components.
-    pub fn add_security<N>(&mut self, name: N, sec: SecurityScheme)
+    pub fn add_security_scheme<N>(&mut self, name: N, sec: SecurityScheme)
     where
         N: Into<String>,
     {

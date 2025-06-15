@@ -1,26 +1,27 @@
 [package]
 name = "okapi-operation-macro"
+version.workspace = true
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
 description = "Macro implementation for okapi-operation"
-version = "0.1.3"
-authors = ["Andrey Kononov flowneee3@gmail.com"]
-edition = "2021"
-license = "MIT"
-keywords = ["rust", "openapi", "swagger", "axum"]
-categories = ["web-programming"]
-readme = "../README.md"
-repository = "https://github.com/Flowneee/okapi-operation"
 
 [lib]
 proc-macro = true
 
 [dependencies]
-darling = "0.14.3"
-lazy_static = "1.4"
+darling = "0.20"
 proc-macro2 = "1"
 quote = "1"
-syn = { version = "1", features = ["full"] }
-thiserror = "1"
+syn = { version = "2", features = ["full"] }
+thiserror = "2"
+
+[features]
+axum = []
 
 [dev-dependencies]
-axum = "0.6"
-okapi = { version = "0.7.0-rc.1", features = ["preserve_order"] }
+assert_matches = "1"

@@ -1,19 +1,18 @@
 use darling::FromMeta;
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens};
-use syn::Meta;
+use quote::{ToTokens, quote};
+use syn::{Meta, Token, punctuated::Punctuated};
 
+use super::cookie::{COOKIE_ATTRIBUTE_NAME, Cookie};
 use crate::{
     operation::{
-        header::{Header, HEADER_ATTRIBUTE_NAME},
-        path::{Path, PATH_ATTRIBUTE_NAME},
-        query::{Query, QUERY_ATTRIBUTE_NAME},
-        reference::{Reference, REFERENCE_ATTRIBUTE_NAME},
+        header::{HEADER_ATTRIBUTE_NAME, Header},
+        path::{PATH_ATTRIBUTE_NAME, Path},
+        query::{QUERY_ATTRIBUTE_NAME, Query},
+        reference::{REFERENCE_ATTRIBUTE_NAME, Reference},
     },
-    utils::{meta_to_meta_list, nested_meta_to_meta},
+    utils::meta_to_meta_list,
 };
-
-use super::cookie::{Cookie, COOKIE_ATTRIBUTE_NAME};
 
 // TODO: support cookie parameters
 // TODO: support parameters from function signature
@@ -59,22 +58,21 @@ impl FromMeta for Parameters {
     fn from_meta(meta: &Meta) -> Result<Self, darling::Error> {
         let meta_list = meta_to_meta_list(meta)?;
         let mut this = Self::default();
-        for nested_meta in meta_list.nested.iter() {
-            let meta = nested_meta_to_meta(nested_meta)?;
+        for meta in meta_list.parse_args_with(Punctuated::<Meta, Token![,]>::parse_terminated)? {
             let meta_ident = meta
                 .path()
                 .get_ident()
-                .ok_or_else(|| darling::Error::custom("Should have Ident").with_span(meta))?;
+                .ok_or_else(|| darling::Error::custom("Should have Ident").with_span(&meta))?;
             if meta_ident == HEADER_ATTRIBUTE_NAME {
-                this.header_parameters.push(Header::from_meta(meta)?);
+                this.header_parameters.push(Header::from_meta(&meta)?);
             } else if meta_ident == PATH_ATTRIBUTE_NAME {
-                this.path_parameters.push(Path::from_meta(meta)?);
+                this.path_parameters.push(Path::from_meta(&meta)?);
             } else if meta_ident == QUERY_ATTRIBUTE_NAME {
-                this.query_parameters.push(Query::from_meta(meta)?);
+                this.query_parameters.push(Query::from_meta(&meta)?);
             } else if meta_ident == COOKIE_ATTRIBUTE_NAME {
-                this.cookie_parameters.push(Cookie::from_meta(meta)?);
+                this.cookie_parameters.push(Cookie::from_meta(&meta)?);
             } else if meta_ident == REFERENCE_ATTRIBUTE_NAME {
-                this.ref_parameters.push(Reference::from_meta(meta)?);
+                this.ref_parameters.push(Reference::from_meta(&meta)?);
             } else {
                 return Err(
                     darling::Error::custom("Unsupported type of parameter").with_span(meta_ident)

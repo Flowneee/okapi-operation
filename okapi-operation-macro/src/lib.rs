@@ -1,4 +1,6 @@
-use syn::{parse_macro_input, AttributeArgs, ItemFn};
+#![allow(clippy::manual_unwrap_or_default)]
+
+use syn::{ItemFn, parse_macro_input};
 
 mod error;
 mod operation;
@@ -11,10 +13,7 @@ pub fn openapi(
     attr: proc_macro::TokenStream,
     input: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
-    match operation::openapi(
-        parse_macro_input!(attr as AttributeArgs),
-        parse_macro_input!(input as ItemFn),
-    ) {
+    match operation::openapi(attr, parse_macro_input!(input as ItemFn)) {
         Ok(x) => x.into(),
         Err(err) => err.write().into(),
     }

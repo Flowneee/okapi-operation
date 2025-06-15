@@ -1,13 +1,18 @@
 [package]
 name = "okapi-examples"
-version = "0.1.0"
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+version.workspace = true
+authors.workspace = true
+categories.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
 
 [dependencies]
-axum = { version = "0.6", features = ["headers"] }
-tokio = { version = "1.28.0", features = ["full"] }
+axum = "0.8"
+axum-extra = { version = "0.10", features = ["typed-header"] }
+okapi-operation = { path = "../okapi-operation", features = ["axum", "yaml"] }
+okapi-operation-macro = { path = "../okapi-operation-macro", features = ["axum"] }
 serde = { version = "1", features = ["derive"] }
-okapi-operation = { path = "../okapi-operation", features = ["default", "yaml"] }
-okapi-operation-macro = { path = "../okapi-operation-macro" }
+tokio = { version = "1", features = ["full"] }

@@ -6,7 +6,7 @@ pub use paste::paste;
 pub use self::{
     handler_traits::{HandlerExt, HandlerWithOperation, ServiceExt, ServiceWithOperation},
     method_router::*,
-    router::Router,
+    router::{DEFAULT_OPENAPI_PATH, Router},
 };
 
 #[cfg(feature = "yaml")]
@@ -18,11 +18,14 @@ mod operations;
 mod router;
 mod trait_impls;
 
-use axum::response::{IntoResponse, Response};
-use axum::{extract::State, Json};
+use axum::{
+    Json,
+    extract::State,
+    response::{IntoResponse, Response},
+};
 use http::{
-    header::{self, ACCEPT},
     HeaderMap, HeaderValue, StatusCode,
+    header::{self, ACCEPT},
 };
 use okapi::openapi3::OpenApi;
 
@@ -41,33 +44,37 @@ use crate::*;
             description = "",
             content = "axum::Json<std::collections::HashMap<String, String>>"
         )
-    )
+    ),
+    crate = "crate"
 )]
 pub async fn serve_openapi_spec(spec: State<OpenApi>, headers: HeaderMap) -> Response {
-    match headers
+    let accept_header = headers
         .get(ACCEPT)
         .and_then(|h| h.to_str().ok())
-        .map(|x| x.to_lowercase())
-        .as_deref()
-    {
+        .map(|h| h.to_ascii_lowercase());
+
+    match accept_header {
         #[cfg(feature = "yaml")]
-        Some("yaml") => self::yaml::Yaml(spec.0).into_response(),
-        Some("json" | "*/*" | "") | None => Json(spec.0).into_response(),
+        Some(accept_header) if accept_header.contains("yaml") => yaml::Yaml(spec.0).into_response(),
+        Some(accept_header) if accept_header.contains("json") | accept_header.contains("*/*") => {
+            Json(spec.0).into_response()
+        }
         Some(_) => {
             let status = StatusCode::BAD_REQUEST;
             let headers = [(
                 header::CONTENT_TYPE,
                 HeaderValue::from_static("text/plain; charset=utf-8"),
             )];
-            let err = format!(
-                "Bad Accept header value, should be either 'json', {}'*/*' or empty",
-                if cfg!(feature = "yaml") {
-                    "'yaml', "
-                } else {
-                    ""
-                }
-            );
+            let err = if cfg!(feature = "yaml") {
+                "Bad Accept header value, should contain either 'json', 'yaml' or empty"
+            } else {
+                "Bad Accept header value, should contain either 'json' or empty"
+            };
             (status, headers, err).into_response()
+        }
+        None => {
+            // Defaults to json
+            Json(spec.0).into_response()
         }
     }
 }
@@ -77,36 +84,53 @@ pub async fn serve_openapi_spec(spec: State<OpenApi>, headers: HeaderMap) -> Res
 #[rustfmt::skip]
 #[macro_export]
 macro_rules! openapi_handler {
-    // Just name
-    ($fn_name:ident) => {
-        openapi_handler!(@final $fn_name)
+    // Entry point
+    ($($va:ident)::+ $(:: <$($gen_param:tt),+>)?) => {
+        $crate::openapi_handler!(@inner $($va)+; ; $($($gen_param)+)?)
     };
 
-    // Path
-    ($va:ident $(:: $vb:ident)+) => {
-        openapi_handler!(@path $va $($vb)+)
-    };
-    (@path $va:ident $($vb:ident)+) => {
-        openapi_handler!(@path $($vb)+; $va)
-    };
-    (@path $va:ident $($vb:ident)+; $acc_a:ident $(:: $acc_b:ident)*) => {
-        openapi_handler!(@path $($vb)+; $acc_a $(:: $acc_b)* :: $va)
-    };
-    (@path $va:ident; $acc_a:ident $(:: $acc_b:ident)*) => {
-        openapi_handler!(@final $va, $acc_a $(:: $acc_b)*)
-    };
+    // Each rule have semicolon-separated "arguments"
 
-    (@final $fn_name:ident $(, $prefix_a:ident $(:: $prefix_b:ident)*)?) => {
+    // Split input into path and function name, consuming left path segment
+    // and pushing it to accumulator.
+    //
+    // Arguments:
+    //   - unprocessed input
+    //   - accumulator
+    (@inner $va:ident $($vb:ident)+ ; $(:: $acc:ident)*; $($gen_param:tt)*) => {
+        $crate::openapi_handler!(@inner $($vb)+; $(:: $acc)* :: $va; $($gen_param)*)
+    };
+    (@inner $va:ident ; $(:: $acc:ident)*; $($gen_param:tt)*) => {
+        $crate::openapi_handler!(@final $va; $($acc)::*; $($gen_param)*)
+    };
+    
+    // Generate code
+    //
+    // Arguments:
+    //   - function name
+    //   - path to function
+    (@final $fn_name:ident ; $($prefix_path_part:ident)::* ; $($gen_param:tt)*) => {
         $crate::axum_integration::paste!{
             {
                 #[allow(unused_imports)]
                 use $crate::axum_integration::{HandlerExt, ServiceExt};
 
-                $($prefix_a $(:: $prefix_b)* ::)? $fn_name
-                    .with_openapi($($prefix_a $(:: $prefix_b)* ::)? [<$fn_name __openapi>])
+                $($prefix_path_part ::)* $fn_name :: <$($gen_param),*>
+                    .with_openapi($($prefix_path_part ::)* [<$fn_name __openapi>])
             }
         }
     };
+}
+
+/// Macro for expanding and binding OpenAPI operation specification
+/// generator to handler or service (shortcut to [`openapi_handler`])
+#[rustfmt::skip]
+#[macro_export]
+macro_rules! oh {
+    ($($v:tt)+) => {
+        $crate::openapi_handler!($($v)+)
+    };
+
 }
 
 /// Macro for expanding and binding OpenAPI operation specification
@@ -115,100 +139,11 @@ macro_rules! openapi_handler {
 #[macro_export]
 #[deprecated = "Use `openapi_handler` instead"]
 macro_rules! openapi_service {
-    ($($t:tt)*) => {
+    ($($t:tt)+) => {
         {
-            use $crate::*;
-            openapi_handler!($($t)*)
+            $crate::openapi_handler!($($t)+)
         }
     }
 }
 
-#[cfg(test)]
-mod openapi_macro {
-    use axum::body::Body;
-    use http::Request;
-
-    use super::*;
-
-    #[test]
-    fn openapi_handler_name() {
-        #[openapi]
-        async fn handle() {}
-
-        let _ = Router::<(), Body>::new().route("/", get(openapi_handler!(handle)));
-    }
-
-    #[test]
-    fn openapi_handler_path() {
-        mod outer {
-            pub mod inner {
-                use crate::*;
-
-                #[openapi]
-                pub async fn handle() {}
-            }
-        }
-
-        let _ = Router::<(), Body>::new().route("/", get(openapi_handler!(outer::inner::handle)));
-    }
-
-    #[test]
-    fn openapi_service_name() {
-        #[openapi]
-        async fn service(_: Request<Body>) {
-            unimplemented!()
-        }
-
-        let _ = Router::<(), Body>::new().route("/", get(openapi_handler!(service)));
-    }
-
-    #[test]
-    fn openapi_service_path() {
-        mod outer {
-            pub mod inner {
-                use axum::body::Body;
-                use http::Request;
-
-                use crate::*;
-
-                #[openapi]
-                pub async fn service(_: Request<Body>) {
-                    unimplemented!()
-                }
-            }
-        }
-
-        let _ = Router::<(), Body>::new().route("/", get(openapi_handler!(outer::inner::service)));
-    }
-
-    #[allow(deprecated)]
-    #[test]
-    fn openapi_service_alias_name() {
-        #[openapi]
-        async fn service(_: Request<Body>) {
-            unimplemented!()
-        }
-
-        let _ = Router::<(), Body>::new().route("/", get(openapi_service!(service)));
-    }
-
-    #[allow(deprecated)]
-    #[test]
-    fn openapi_service_alias_path() {
-        mod outer {
-            pub mod inner {
-                use axum::body::Body;
-                use http::Request;
-
-                use crate::*;
-
-                #[openapi]
-                pub async fn service(_: Request<Body>) {
-                    unimplemented!()
-                }
-            }
-        }
-
-        let _ = Router::<(), Body>::new().route("/", get(openapi_service!(outer::inner::service)));
-    }
-}
+// tests in tests/axum_integration.rs because of https://github.com/rust-lang/rust/issues/52234
