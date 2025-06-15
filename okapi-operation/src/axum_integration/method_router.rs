@@ -22,7 +22,7 @@ macro_rules! top_level_service_fn {
         pub fn $name<I, Svc, S, E>(svc: I) -> MethodRouter<S, E>
         where
             I: Into<ServiceWithOperation<Svc, E>>,
-            Svc: Service<Request, Error = E> + Clone + Send + 'static,
+            Svc: Service<Request, Error = E> + Clone + Send + Sync + 'static,
             Svc::Response: IntoResponse + 'static,
             Svc::Future: Send + 'static,
             S: Clone,
@@ -60,7 +60,7 @@ macro_rules! chained_service_fn {
         pub fn $name<I, Svc>(self, svc: I) -> Self
         where
             I: Into<ServiceWithOperation<Svc, E>>,
-            Svc: Service<Request, Error = E> + Clone + Send + 'static,
+            Svc: Service<Request, Error = E> + Clone + Send + Sync + 'static,
             Svc::Response: IntoResponse + 'static,
             Svc::Future: Send + 'static,
         {
@@ -92,7 +92,7 @@ macro_rules! chained_handler_fn {
 pub fn on_service<I, Svc, S, E>(filter: MethodFilter, svc: I) -> MethodRouter<S, E>
 where
     I: Into<ServiceWithOperation<Svc, E>>,
-    Svc: Service<Request, Error = E> + Clone + Send + 'static,
+    Svc: Service<Request, Error = E> + Clone + Send + Sync + 'static,
     Svc::Response: IntoResponse + 'static,
     Svc::Future: Send + 'static,
     S: Clone,
@@ -351,7 +351,7 @@ where
     pub fn on_service<I, Svc>(self, filter: MethodFilter, svc: I) -> Self
     where
         I: Into<ServiceWithOperation<Svc, E>>,
-        Svc: Service<Request, Error = E> + Clone + Send + 'static,
+        Svc: Service<Request, Error = E> + Clone + Send + Sync + 'static,
         Svc::Response: IntoResponse + 'static,
         Svc::Future: Send + 'static,
     {
@@ -375,7 +375,7 @@ where
 
     pub fn fallback_service<Svc>(self, svc: Svc) -> Self
     where
-        Svc: Service<Request, Error = E> + Clone + Send + 'static,
+        Svc: Service<Request, Error = E> + Clone + Send + Sync + 'static,
         Svc::Response: IntoResponse + 'static,
         Svc::Future: Send + 'static,
     {
@@ -387,8 +387,8 @@ where
 
     pub fn layer<L, NewError>(self, layer: L) -> MethodRouter<S, NewError>
     where
-        L: Layer<Route<E>> + Clone + Send + 'static,
-        L::Service: Service<Request> + Clone + Send + 'static,
+        L: Layer<Route<E>> + Clone + Send + Sync + 'static,
+        L::Service: Service<Request> + Clone + Send + Sync + 'static,
         <L::Service as Service<Request>>::Response: IntoResponse + 'static,
         <L::Service as Service<Request>>::Error: Into<NewError> + 'static,
         <L::Service as Service<Request>>::Future: Send + 'static,
@@ -404,8 +404,8 @@ where
 
     pub fn route_layer<L>(self, layer: L) -> MethodRouter<S, E>
     where
-        L: Layer<Route<E>> + Clone + Send + 'static,
-        L::Service: Service<Request, Error = E> + Clone + Send + 'static,
+        L: Layer<Route<E>> + Clone + Send + Sync + 'static,
+        L::Service: Service<Request, Error = E> + Clone + Send + Sync + 'static,
         <L::Service as Service<Request>>::Response: IntoResponse + 'static,
         <L::Service as Service<Request>>::Future: Send + 'static,
         E: 'static,

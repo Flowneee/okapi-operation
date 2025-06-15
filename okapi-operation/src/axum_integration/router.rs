@@ -128,7 +128,7 @@ where
     /// TODO
     pub fn route_service<Svc>(self, path: &str, service: Svc) -> Self
     where
-        Svc: Service<Request, Error = Infallible> + Clone + Send + 'static,
+        Svc: Service<Request, Error = Infallible> + Clone + Send + Sync + 'static,
         Svc::Response: IntoResponse,
         Svc::Future: Send + 'static,
     {
@@ -178,7 +178,7 @@ where
     /// For details see [`axum::Router::nest_service`].
     pub fn nest_service<Svc>(self, path: &str, svc: Svc) -> Self
     where
-        Svc: Service<Request, Error = Infallible> + Clone + Send + 'static,
+        Svc: Service<Request, Error = Infallible> + Clone + Send + Sync + 'static,
         Svc::Response: IntoResponse,
         Svc::Future: Send + 'static,
     {
@@ -226,8 +226,8 @@ where
     /// For details see [`axum::Router::layer`].
     pub fn layer<L>(self, layer: L) -> Router<S>
     where
-        L: Layer<Route> + Clone + Send + 'static,
-        L::Service: Service<Request> + Clone + Send + 'static,
+        L: Layer<Route> + Clone + Send + Sync + 'static,
+        L::Service: Service<Request> + Clone + Send + Sync + 'static,
         <L::Service as Service<Request>>::Response: IntoResponse + 'static,
         <L::Service as Service<Request>>::Error: Into<Infallible> + 'static,
         <L::Service as Service<Request>>::Future: Send + 'static,
@@ -244,8 +244,8 @@ where
     /// For details see [`axum::Router::route_layer`].
     pub fn route_layer<L>(self, layer: L) -> Self
     where
-        L: Layer<Route> + Clone + Send + 'static,
-        L::Service: Service<Request> + Clone + Send + 'static,
+        L: Layer<Route> + Clone + Send + Sync + 'static,
+        L::Service: Service<Request> + Clone + Send + Sync + 'static,
         <L::Service as Service<Request>>::Response: IntoResponse + 'static,
         <L::Service as Service<Request>>::Error: Into<Infallible> + 'static,
         <L::Service as Service<Request>>::Future: Send + 'static,
@@ -285,7 +285,7 @@ where
     /// This method doesn't add anything to OpenaAPI spec.
     pub fn fallback_service<Svc>(self, svc: Svc) -> Self
     where
-        Svc: Service<Request, Error = Infallible> + Clone + Send + 'static,
+        Svc: Service<Request, Error = Infallible> + Clone + Send + Sync + 'static,
         Svc::Response: IntoResponse,
         Svc::Future: Send + 'static,
     {
