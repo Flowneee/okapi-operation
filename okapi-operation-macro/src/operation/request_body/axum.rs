@@ -1,24 +1,21 @@
-use std::collections::HashSet;
+use std::{collections::HashSet, sync::LazyLock};
 
 use syn::{PatType, Type};
 
 use super::{RequestBody, RequestBodyAttrs};
 use crate::error::Error;
 
-lazy_static::lazy_static! {
-    // NOTE: `Form` is not enabled because it have different content types
-    // based on method https://docs.rs/axum/latest/axum/struct.Form.html#as-extractor
-    static ref KNOWN_BODY_TYPES: HashSet<&'static str> = [
-        // std types
-        "String",
-
-        // axum types
-        "Json",
-
-        // 3rd party types
-        "Bytes",
-    ].into_iter().collect();
-}
+// NOTE: `Form` is not enabled because it have different content types
+// based on method https://docs.rs/axum/latest/axum/struct.Form.html#as-extractor
+static KNOWN_BODY_TYPES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    [
+        "String", // std types
+        "Json",   // 3rd party types
+        "Bytes",  // 3rd party types
+    ]
+    .into_iter()
+    .collect()
+});
 
 impl RequestBody {
     pub(super) fn try_find_axum(pt: &PatType) -> Result<Option<Self>, Error> {
