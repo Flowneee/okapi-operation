@@ -69,6 +69,90 @@ mod openapi {
 }
 
 #[cfg(feature = "axum")]
+mod parameters {
+    use okapi::openapi3::{ParameterValue, RefOr};
+    use okapi_operation::{axum_integration::{Router, get}, oh, openapi};
+
+    fn get_parameter(name: &str) -> okapi::openapi3::Parameter {
+        #[openapi(
+            parameters(
+                query(name = "schema-param", required = true, schema = "String"),
+                query(name = "content-param", required = false, content = "application/json", schema = "String"),
+                path(name = "path-param", content = "text/plain", schema = "u32"),
+                header(name = "x-custom", schema = "String"),
+                header(name = "x-custom-content", content = "application/json", schema = "String"),
+            )
+        )]
+        async fn handle() {}
+
+        let schema = Router::<()>::new()
+            .route("/", get(oh!(handle)))
+            .generate_openapi_builder()
+            .build()
+            .expect("schema generation shouldn't fail");
+
+        let operation = schema.paths["/"].clone().get.expect("GET / should be present");
+        operation
+            .parameters
+            .into_iter()
+            .find_map(|p| match p {
+                RefOr::Object(p) if p.name == name => Some(p),
+                _ => None,
+            })
+            .unwrap_or_else(|| panic!("parameter '{}' not found", name))
+    }
+
+    #[test]
+    fn query_schema_value() {
+        let param = get_parameter("schema-param");
+        assert!(
+            matches!(param.value, ParameterValue::Schema { .. }),
+            "query with schema= should produce ParameterValue::Schema"
+        );
+    }
+
+    #[test]
+    fn query_content_value() {
+        let param = get_parameter("content-param");
+        let ParameterValue::Content { content } = param.value else {
+            panic!("query with content= should produce ParameterValue::Content");
+        };
+        assert!(
+            content.contains_key("application/json"),
+            "content map should contain 'application/json'"
+        );
+        assert!(
+            content["application/json"].schema.is_some(),
+            "MediaType schema should be present"
+        );
+    }
+
+    #[test]
+    fn path_content_value() {
+        let param = get_parameter("path-param");
+        let ParameterValue::Content { content } = param.value else {
+            panic!("path with content= should produce ParameterValue::Content");
+        };
+        assert!(content.contains_key("text/plain"));
+    }
+
+    #[test]
+    fn header_schema_value() {
+        let param = get_parameter("x-custom");
+        assert!(matches!(param.value, ParameterValue::Schema { .. }));
+    }
+
+    #[test]
+    fn header_content_value() {
+        let param = get_parameter("x-custom-content");
+        let ParameterValue::Content { content } = param.value else {
+            panic!("header with content= should produce ParameterValue::Content");
+        };
+        assert!(content.contains_key("application/json"));
+    }
+}
+
+#[cfg(feature = "axum")]
 #[allow(deprecated)]
 mod openapi_handler {
     use axum::body::Body;

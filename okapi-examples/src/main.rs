@@ -8,6 +8,14 @@ struct Request {
     data: String,
 }
 
+#[derive(Debug, Deserialize, JsonSchema)]
+struct SearchFilter {
+    /// Minimum value
+    min: Option<i32>,
+    /// Maximum value
+    max: Option<i32>,
+}
+
 #[openapi(
     summary = "Echo using GET request",
     tags = "echo",
@@ -38,6 +46,25 @@ async fn echo_put(body: Json<Request>) -> Json<String> {
     Json(body.0.data)
 }
 
+// Demonstrates content-based parameter: the `filter` query parameter is described
+// as application/json rather than a plain schema, which is useful for complex objects
+// that are JSON-encoded in the query string.
+#[openapi(
+    summary = "Search with JSON-encoded filter",
+    tags = "search",
+    parameters(
+        query(
+            name = "filter",
+            required = false,
+            content = "application/json",
+            schema = "SearchFilter"
+        ),
+    )
+)]
+async fn search(query: Query<SearchFilter>) -> Json<String> {
+    Json(format!("min={:?} max={:?}", query.0.min, query.0.max))
+}
+
 #[tokio::main]
 async fn main() {
     let app = Router::new()
@@ -45,6 +72,7 @@ async fn main() {
             "/echo",
             get(oh!(echo_get)).post(oh!(echo_post)).put(oh!(echo_put)),
         )
+        .route("/search", get(oh!(search)))
         .finish_openapi("/openapi", "Demo", "1.0.0")
         .expect("no problem");
 

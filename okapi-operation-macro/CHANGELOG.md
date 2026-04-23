@@ -3,6 +3,12 @@
 All notable changes to this project will be documented in the changelog of the respective crates.
 This project follows the [Semantic Versioning standard](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Support `content` field for `path`, `query`, `header`, and `cookie` parameters — allows specifying a parameter value via `ParameterValue::Content` (a media type map) instead of `ParameterValue::Schema`.
+
 ## [0.3.0] - 2025-06-15
 
 Release `0.3.0` version.
