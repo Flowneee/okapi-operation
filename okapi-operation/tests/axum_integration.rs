@@ -71,18 +71,28 @@ mod openapi {
 #[cfg(feature = "axum")]
 mod parameters {
     use okapi::openapi3::{ParameterValue, RefOr};
-    use okapi_operation::{axum_integration::{Router, get}, oh, openapi};
+    use okapi_operation::{
+        axum_integration::{Router, get},
+        oh, openapi,
+    };
 
     fn get_parameter(name: &str) -> okapi::openapi3::Parameter {
-        #[openapi(
-            parameters(
-                query(name = "schema-param", required = true, schema = "String"),
-                query(name = "content-param", required = false, content = "application/json", schema = "String"),
-                path(name = "path-param", content = "text/plain", schema = "u32"),
-                header(name = "x-custom", schema = "String"),
-                header(name = "x-custom-content", content = "application/json", schema = "String"),
-            )
-        )]
+        #[openapi(parameters(
+            query(name = "schema-param", required = true, schema = "String"),
+            query(
+                name = "content-param",
+                required = false,
+                content = "application/json",
+                schema = "String"
+            ),
+            path(name = "path-param", content = "text/plain", schema = "u32"),
+            header(name = "x-custom", schema = "String"),
+            header(
+                name = "x-custom-content",
+                content = "application/json",
+                schema = "String"
+            ),
+        ))]
         async fn handle() {}
 
         let schema = Router::<()>::new()
@@ -91,7 +101,10 @@ mod parameters {
             .build()
             .expect("schema generation shouldn't fail");
 
-        let operation = schema.paths["/"].clone().get.expect("GET / should be present");
+        let operation = schema.paths["/"]
+            .clone()
+            .get
+            .expect("GET / should be present");
         operation
             .parameters
             .into_iter()

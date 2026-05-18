@@ -52,14 +52,12 @@ async fn echo_put(body: Json<Request>) -> Json<String> {
 #[openapi(
     summary = "Search with JSON-encoded filter",
     tags = "search",
-    parameters(
-        query(
-            name = "filter",
-            required = false,
-            content = "application/json",
-            schema = "SearchFilter"
-        ),
-    )
+    parameters(query(
+        name = "filter",
+        required = false,
+        content = "application/json",
+        schema = "SearchFilter"
+    ),)
 )]
 async fn search(query: Query<SearchFilter>) -> Json<String> {
     Json(format!("min={:?} max={:?}", query.0.min, query.0.max))
