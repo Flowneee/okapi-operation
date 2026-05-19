@@ -39,11 +39,11 @@ impl Header {
         }
     }
 
-    pub(super) fn for_parameter(&self) -> ParameterHeader {
+    pub(super) fn for_parameter(&self) -> ParameterHeader<'_> {
         ParameterHeader(self)
     }
 
-    pub(super) fn for_response(&self) -> ResponseHeader {
+    pub(super) fn for_response(&self) -> ResponseHeader<'_> {
         ResponseHeader(self)
     }
 }

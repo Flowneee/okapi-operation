@@ -57,6 +57,48 @@ fn main() {
 }
 ```
 
+## Path parameters from function signature (axum)
+
+With the `axum` feature enabled, path parameters are inferred from the
+function signature, so handlers that use the axum `Path<...>` extractor no
+longer need to repeat their names in `parameters(path(...))`. Two binding
+shapes are recognized:
+
+```rust,no_run
+use axum::extract::Path;
+use okapi_operation::{axum_integration::*, *};
+
+// Single path parameter — inferred as `system: String`.
+#[openapi(operation_id = "get_system")]
+async fn get_system(Path(system): Path<String>) -> String {
+    system
+}
+
+// Tuple — inferred in order: `system: String`, `backup_name: String`.
+#[openapi(operation_id = "abort_backup")]
+async fn abort_backup(Path((system, backup_name)): Path<(String, String)>) {
+    let _ = (system, backup_name);
+}
+```
+
+Anything more involved (struct extractors, wildcard `_` bindings, references,
+…) is left to explicit `parameters(path(...))` declarations, which always
+take precedence over inferred entries with the same name.
+
+## Cookie parameters
+
+Cookie parameters are declared the same way as the other kinds:
+
+```rust,no_run
+use okapi_operation::*;
+
+#[openapi(
+    operation_id = "me",
+    parameters(cookie(name = "session", required = true, schema = "String")),
+)]
+async fn me() {}
+```
+
 ## Features
 
 - `macro`: enables re-import of `#[openapi]` macro (enabled by default);

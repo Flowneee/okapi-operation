@@ -132,3 +132,210 @@ mod openapi_handler {
         let _ = Router::<()>::new().route("/", get(openapi_service!(service)));
     }
 }
+
+#[cfg(feature = "axum")]
+mod path_inference {
+    use axum::extract::Path;
+    use okapi::openapi3::{ParameterValue, RefOr};
+    use okapi_operation::{
+        axum_integration::{Router, get, post},
+        oh, openapi,
+    };
+
+    fn parameters(
+        route: &str,
+        method: &str,
+        op: okapi::openapi3::Operation,
+    ) -> Vec<okapi::openapi3::Parameter> {
+        let _ = (route, method);
+        op.parameters
+            .into_iter()
+            .map(|p| match p {
+                RefOr::Object(obj) => obj,
+                RefOr::Ref(_) => panic!("unexpected ref parameter"),
+            })
+            .collect()
+    }
+
+    fn get_op(schema: &okapi::openapi3::OpenApi, route: &str) -> okapi::openapi3::Operation {
+        schema.paths[route]
+            .clone()
+            .get
+            .expect("GET should be present")
+    }
+
+    fn post_op(schema: &okapi::openapi3::OpenApi, route: &str) -> okapi::openapi3::Operation {
+        schema.paths[route]
+            .clone()
+            .post
+            .expect("POST should be present")
+    }
+
+    fn assert_path_param(p: &okapi::openapi3::Parameter, name: &str) {
+        assert_eq!(p.name, name, "param name mismatch");
+        assert_eq!(p.location, "path", "param location mismatch");
+        assert!(p.required, "path params must be required");
+        assert!(
+            matches!(p.value, ParameterValue::Schema { .. }),
+            "expected schema parameter value"
+        );
+    }
+
+    #[test]
+    fn infers_single_path_parameter() {
+        #[openapi]
+        async fn handle(Path(system): Path<String>) {
+            let _ = system;
+        }
+
+        let schema = Router::<()>::new()
+            .route("/api/{system}", get(oh!(handle)))
+            .generate_openapi_builder()
+            .build()
+            .expect("schema generation shouldn't fail");
+
+        let params = parameters("/api/{system}", "GET", get_op(&schema, "/api/{system}"));
+        assert_eq!(params.len(), 1);
+        assert_path_param(&params[0], "system");
+    }
+
+    #[test]
+    fn infers_tuple_path_parameters_in_order() {
+        #[openapi]
+        async fn abort_backup(Path((system, backup_name)): Path<(String, String)>) {
+            let _ = (system, backup_name);
+        }
+
+        let schema = Router::<()>::new()
+            .route(
+                "/api/system/{system}/backup/abort/{backup_name}",
+                post(oh!(abort_backup)),
+            )
+            .generate_openapi_builder()
+            .build()
+            .expect("schema generation shouldn't fail");
+
+        let params = parameters(
+            "/api/system/{system}/backup/abort/{backup_name}",
+            "POST",
+            post_op(&schema, "/api/system/{system}/backup/abort/{backup_name}"),
+        );
+        assert_eq!(params.len(), 2, "two path params expected");
+        assert_path_param(&params[0], "system");
+        assert_path_param(&params[1], "backup_name");
+    }
+
+    #[test]
+    fn explicit_declaration_wins_over_inferred() {
+        // Explicit `description` should survive — inference must not overwrite
+        // a parameter already declared by name.
+        #[openapi(parameters(path(
+            name = "system",
+            description = "system id",
+            schema = "String"
+        )))]
+        async fn handle(Path(system): Path<String>) {
+            let _ = system;
+        }
+
+        let schema = Router::<()>::new()
+            .route("/api/{system}", get(oh!(handle)))
+            .generate_openapi_builder()
+            .build()
+            .expect("schema generation shouldn't fail");
+
+        let params = parameters("/api/{system}", "GET", get_op(&schema, "/api/{system}"));
+        assert_eq!(params.len(), 1, "no duplicate from inference");
+        assert_eq!(params[0].name, "system");
+        assert_eq!(params[0].description.as_deref(), Some("system id"));
+    }
+
+    #[test]
+    fn unsupported_patterns_are_skipped() {
+        // Wildcard binding cannot be inferred — the user is expected to declare
+        // the parameter explicitly. We just verify the macro still compiles
+        // and produces an operation with no inferred params.
+        #[openapi]
+        async fn handle(Path(_): Path<String>) {}
+
+        let schema = Router::<()>::new()
+            .route("/api/{system}", get(oh!(handle)))
+            .generate_openapi_builder()
+            .build()
+            .expect("schema generation shouldn't fail");
+
+        let op = get_op(&schema, "/api/{system}");
+        assert!(op.parameters.is_empty(), "no params should be inferred");
+    }
+}
+
+#[cfg(feature = "axum")]
+mod cookie_parameters {
+    use okapi::openapi3::{ParameterValue, RefOr};
+    use okapi_operation::{
+        axum_integration::{Router, get},
+        oh, openapi,
+    };
+
+    fn get_parameters(
+        schema: &okapi::openapi3::OpenApi,
+        route: &str,
+    ) -> Vec<okapi::openapi3::Parameter> {
+        schema.paths[route]
+            .clone()
+            .get
+            .expect("GET should be present")
+            .parameters
+            .into_iter()
+            .map(|p| match p {
+                RefOr::Object(obj) => obj,
+                RefOr::Ref(_) => panic!("unexpected ref parameter"),
+            })
+            .collect()
+    }
+
+    #[test]
+    fn cookie_parameter_is_emitted() {
+        #[openapi(parameters(cookie(name = "session", required = true, schema = "String")))]
+        async fn handle() {}
+
+        let schema = Router::<()>::new()
+            .route("/", get(oh!(handle)))
+            .generate_openapi_builder()
+            .build()
+            .expect("schema generation shouldn't fail");
+
+        let params = get_parameters(&schema, "/");
+        assert_eq!(params.len(), 1, "cookie parameter must be emitted");
+        let p = &params[0];
+        assert_eq!(p.name, "session");
+        assert_eq!(p.location, "cookie", "OpenAPI requires lowercase 'cookie'");
+        assert!(p.required);
+        assert!(matches!(p.value, ParameterValue::Schema { .. }));
+    }
+
+    #[test]
+    fn cookie_mixed_with_other_parameter_kinds() {
+        // Verify cookie params don't collide with header/path/query when
+        // declared together on the same operation.
+        #[openapi(parameters(
+            header(name = "x-trace", schema = "String"),
+            query(name = "limit", schema = "u32"),
+            cookie(name = "session", schema = "String"),
+        ))]
+        async fn handle() {}
+
+        let schema = Router::<()>::new()
+            .route("/", get(oh!(handle)))
+            .generate_openapi_builder()
+            .build()
+            .expect("schema generation shouldn't fail");
+
+        let params = get_parameters(&schema, "/");
+        assert_eq!(params.len(), 3);
+        let locations: Vec<&str> = params.iter().map(|p| p.location.as_str()).collect();
+        assert!(locations.contains(&"header"));
+        assert!(locations.contains(&"query"));
+        assert!(locations.contains(&"cookie"));
+    }
+}
