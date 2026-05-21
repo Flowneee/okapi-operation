@@ -20,30 +20,49 @@ pub(super) struct Header {
     #[darling(default)]
     style: Option<ParameterStyle>,
     schema: Path,
-    // TODO: support content as well
+    #[darling(default)]
+    content: Option<String>,
 }
 
 impl Header {
-    fn schema(&self) -> TokenStream {
-        let style = quote_option(&self.style);
+    fn value(&self) -> TokenStream {
         let ty = &self.schema;
-        quote! {
-            okapi::openapi3::ParameterValue::Schema {
-                style: #style,
-                explode: None,
-                allow_reserved: false,
-                schema: components.schema_for::<#ty>(),
-                example: Default::default(),
-                examples: Default::default(),
+        if let Some(media_type) = &self.content {
+            quote! {
+                okapi::openapi3::ParameterValue::Content {
+                    content: {
+                        let mut __map = okapi::Map::new();
+                        __map.insert(
+                            #media_type.to_string(),
+                            okapi::openapi3::MediaType {
+                                schema: Some(components.schema_for::<#ty>()),
+                                ..Default::default()
+                            },
+                        );
+                        __map
+                    },
+                }
+            }
+        } else {
+            let style = quote_option(&self.style);
+            quote! {
+                okapi::openapi3::ParameterValue::Schema {
+                    style: #style,
+                    explode: None,
+                    allow_reserved: false,
+                    schema: components.schema_for::<#ty>(),
+                    example: Default::default(),
+                    examples: Default::default(),
+                }
             }
         }
     }
 
-    pub(super) fn for_parameter(&self) -> ParameterHeader {
+    pub(super) fn for_parameter(&self) -> ParameterHeader<'_> {
         ParameterHeader(self)
     }
 
-    pub(super) fn for_response(&self) -> ResponseHeader {
+    pub(super) fn for_response(&self) -> ResponseHeader<'_> {
         ResponseHeader(self)
     }
 }
@@ -57,7 +76,7 @@ impl ToTokens for ParameterHeader<'_> {
         let description = quote_option(&self.0.description);
         let required = &self.0.required;
         let deprecated = &self.0.deprecated;
-        let schema = self.0.schema();
+        let value = self.0.value();
         let new_tokens = quote! {
             okapi::openapi3::Parameter {
                 name: #name.into(),
@@ -66,7 +85,7 @@ impl ToTokens for ParameterHeader<'_> {
                 required: #required,
                 deprecated: #deprecated,
                 allow_empty_value: false,
-                value: #schema,
+                value: #value,
                 extensions: Default::default(),
             }
         };
@@ -82,14 +101,14 @@ impl ToTokens for ResponseHeader<'_> {
         let description = quote_option(&self.0.description);
         let required = &self.0.required;
         let deprecated = &self.0.deprecated;
-        let schema = self.0.schema();
+        let value = self.0.value();
         tokens.extend(quote! {
             okapi::openapi3::Header {
                 description: #description,
                 required: #required,
                 deprecated: #deprecated,
                 allow_empty_value: false,
-                value: #schema,
+                value: #value,
                 extensions: Default::default(),
             }
         });

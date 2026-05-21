@@ -57,6 +57,26 @@ fn main() {
 }
 ```
 
+## Parameters
+
+Parameters (`path`, `query`, `header`, `cookie`) support two mutually exclusive ways to describe the parameter value:
+
+- `schema = "Type"` — describes the parameter inline using a JSON Schema derived from the given type (default, as in the example above);
+- `content = "media/type", schema = "Type"` — describes the parameter via a media type map (`ParameterValue::Content`), useful when the parameter encoding requires a specific media type (e.g. `application/json`).
+
+```rust,no_run
+#[openapi(
+    parameters(
+        // inline schema
+        query(name = "id", schema = "u64"),
+        // content-based
+        query(name = "filter", content = "application/json", schema = "MyFilter"),
+        path(name = "slug", content = "text/plain", schema = "String"),
+    )
+)]
+async fn handler() { ... }
+```
+
 ## Features
 
 - `macro`: enables re-import of `#[openapi]` macro (enabled by default);
