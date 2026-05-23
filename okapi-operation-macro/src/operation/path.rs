@@ -17,7 +17,8 @@ pub(super) struct Path {
     #[darling(default)]
     style: Option<ParameterStyle>,
     schema: syn::Path,
-    // TODO: support content as well
+    #[darling(default)]
+    content: Option<String>,
 }
 
 impl Path {
@@ -42,8 +43,36 @@ impl ToTokens for Path {
         let name = &self.name;
         let description = quote_option(&self.description);
         let deprecated = &self.deprecated;
-        let style = quote_option(&self.style);
         let ty = &self.schema;
+        let value = if let Some(media_type) = &self.content {
+            quote! {
+                okapi::openapi3::ParameterValue::Content {
+                    content: {
+                        let mut __map = okapi::Map::new();
+                        __map.insert(
+                            #media_type.to_string(),
+                            okapi::openapi3::MediaType {
+                                schema: Some(components.schema_for::<#ty>()),
+                                ..Default::default()
+                            },
+                        );
+                        __map
+                    },
+                }
+            }
+        } else {
+            let style = quote_option(&self.style);
+            quote! {
+                okapi::openapi3::ParameterValue::Schema {
+                    style: #style,
+                    explode: None,
+                    allow_reserved: false,
+                    schema: components.schema_for::<#ty>(),
+                    example: Default::default(),
+                    examples: Default::default(),
+                }
+            }
+        };
         tokens.extend(quote! {
             okapi::openapi3::Parameter {
                 name: #name.into(),
@@ -52,16 +81,7 @@ impl ToTokens for Path {
                 required: true,
                 deprecated: #deprecated,
                 allow_empty_value: false,
-                value: {
-                    okapi::openapi3::ParameterValue::Schema {
-                        style: #style,
-                        explode: None,
-                        allow_reserved: false,
-                        schema: components.schema_for::<#ty>(),
-                        example: Default::default(),
-                        examples: Default::default(),
-                    }
-                },
+                value: { #value },
                 extensions: Default::default(),
             }
         });

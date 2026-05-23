@@ -24,6 +24,7 @@ This project follows the [Semantic Versioning standard](https://semver.org/).
   at all.
 - The cookie parameter `location` is now `"cookie"` (lowercase) as required
   by OpenAPI 3.0.
+- Support `content` field for `path`, `query`, `header`, and `cookie` parameters — allows specifying a parameter value via `ParameterValue::Content` (a media type map) instead of `ParameterValue::Schema`.
 
 ## [0.3.0] - 2025-06-15
 

@@ -22,7 +22,8 @@ pub(super) struct Cookie {
     #[darling(default)]
     allow_empty_value: bool,
     schema: Path,
-    // TODO: support content as well
+    #[darling(default)]
+    content: Option<String>,
 }
 
 impl ToTokens for Cookie {
@@ -31,11 +32,39 @@ impl ToTokens for Cookie {
         let description = quote_option(&self.description);
         let required = &self.required;
         let deprecated = &self.deprecated;
-        let style = ParameterStyle::Form;
-        let explode = quote_option(&self.explode);
         let allow_empty_values = &self.allow_empty_value;
-        let allow_reserved = false;
         let ty = &self.schema;
+        let value = if let Some(media_type) = &self.content {
+            quote! {
+                okapi::openapi3::ParameterValue::Content {
+                    content: {
+                        let mut __map = okapi::Map::new();
+                        __map.insert(
+                            #media_type.to_string(),
+                            okapi::openapi3::MediaType {
+                                schema: Some(components.schema_for::<#ty>()),
+                                ..Default::default()
+                            },
+                        );
+                        __map
+                    },
+                }
+            }
+        } else {
+            let style = ParameterStyle::Form;
+            let explode = quote_option(&self.explode);
+            let allow_reserved = false;
+            quote! {
+                okapi::openapi3::ParameterValue::Schema {
+                    style: #style,
+                    explode: #explode,
+                    allow_reserved: #allow_reserved,
+                    schema: components.schema_for::<#ty>(),
+                    example: Default::default(),
+                    examples: Default::default(),
+                }
+            }
+        };
         tokens.extend(quote! {
             okapi::openapi3::Parameter {
                 name: #name.into(),
@@ -44,16 +73,7 @@ impl ToTokens for Cookie {
                 required: #required,
                 deprecated: #deprecated,
                 allow_empty_value: #allow_empty_values,
-                value: {
-                    okapi::openapi3::ParameterValue::Schema {
-                        style: Some(#style),
-                        explode: #explode,
-                        allow_reserved: #allow_reserved,
-                        schema: components.schema_for::<#ty>(),
-                        example: Default::default(),
-                        examples: Default::default(),
-                    }
-                },
+                value: { #value },
                 extensions: Default::default(),
             }
         });
