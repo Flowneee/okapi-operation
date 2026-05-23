@@ -56,7 +56,7 @@ impl ToTokens for Cookie {
             let allow_reserved = false;
             quote! {
                 okapi::openapi3::ParameterValue::Schema {
-                    style: #style,
+                    style: Some(#style),
                     explode: #explode,
                     allow_reserved: #allow_reserved,
                     schema: components.schema_for::<#ty>(),

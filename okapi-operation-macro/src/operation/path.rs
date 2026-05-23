@@ -34,6 +34,7 @@ impl Path {
             deprecated: false,
             style: None,
             schema,
+            content: None,
         }
     }
 }
