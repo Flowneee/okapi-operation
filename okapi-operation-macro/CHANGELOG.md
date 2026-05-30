@@ -5,6 +5,8 @@ This project follows the [Semantic Versioning standard](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-30
+
 ### Added
 
 - Path parameters are now inferred from the function signature when the `axum`

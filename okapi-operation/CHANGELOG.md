@@ -5,6 +5,8 @@ This project follows the [Semantic Versioning standard](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-05-30
+
 ### Added
 
 - Now you can enable inferring `operation_id` from the function name, using `OpenApiBuilder.infer_operation_id()`.
