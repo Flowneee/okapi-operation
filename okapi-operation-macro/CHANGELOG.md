@@ -7,6 +7,23 @@ This project follows the [Semantic Versioning standard](https://semver.org/).
 
 ### Added
 
+- Path parameters are now inferred from the function signature when the `axum`
+  feature is enabled. The axum `Path<...>` extractor is recognized in two
+  forms: `Path(name): Path<T>` produces a single path parameter, and
+  `Path((a, b, ...)): Path<(T1, T2, ...)>` produces one parameter per tuple
+  position. Parameters declared explicitly via `parameters(path(...))` win
+  over inferred ones with the same name, so existing code is unaffected.
+
+### Fixed
+
+- `parameters(cookie(...))` entries are now actually emitted into the
+  generated operation. Previously cookie parameters were parsed but silently
+  dropped, so declared cookies never appeared in the spec.
+- The cookie style field is now wrapped in `Some(...)`, fixing a compile
+  error that previously prevented `parameters(cookie(...))` from being used
+  at all.
+- The cookie parameter `location` is now `"cookie"` (lowercase) as required
+  by OpenAPI 3.0.
 - Support `content` field for `path`, `query`, `header`, and `cookie` parameters — allows specifying a parameter value via `ParameterValue::Content` (a media type map) instead of `ParameterValue::Schema`.
 
 ## [0.3.0] - 2025-06-15

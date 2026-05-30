@@ -8,6 +8,17 @@ This project follows the [Semantic Versioning standard](https://semver.org/).
 ### Added
 
 - Now you can enable inferring `operation_id` from the function name, using `OpenApiBuilder.infer_operation_id()`.
+- Path parameters are now inferred from the function signature when the `axum`
+  feature is enabled (`Path(name): Path<T>` and
+  `Path((a, b)): Path<(T1, T2)>`). Explicit `parameters(path(...))` declarations
+  with the same name take precedence.
+
+### Fixed
+
+- `parameters(cookie(...))` is now actually emitted into the generated
+  operation, with `location` set to `"cookie"` per OpenAPI 3.0. Previously
+  cookie entries didn't compile, and even if they did they were silently
+  dropped from the spec.
 
 ## [0.3.0] - 2025-06-13
 

@@ -1,7 +1,7 @@
 use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
-use syn::{Meta, Token, punctuated::Punctuated};
+use syn::{ItemFn, Meta, Token, punctuated::Punctuated};
 
 use super::cookie::{COOKIE_ATTRIBUTE_NAME, Cookie};
 use crate::{
@@ -13,9 +13,6 @@ use crate::{
     },
     utils::meta_to_meta_list,
 };
-
-// TODO: support cookie parameters
-// TODO: support parameters from function signature
 
 #[derive(Debug, FromMeta)]
 #[darling(rename_all = "camelCase")]
@@ -44,7 +41,7 @@ impl ToTokens for ParameterStyle {
     }
 }
 
-/// Parameters description (header/path/query) .
+/// Parameters description (header/path/query/cookie).
 #[derive(Default, Debug)]
 pub(super) struct Parameters {
     header_parameters: Vec<Header>,
@@ -52,6 +49,33 @@ pub(super) struct Parameters {
     query_parameters: Vec<Query>,
     cookie_parameters: Vec<Cookie>,
     ref_parameters: Vec<Reference>,
+}
+
+impl Parameters {
+    /// Append parameters that can be inferred from the function signature
+    /// (currently: axum `Path<...>` extractor). Names already declared via the
+    /// macro arguments win — inferred entries with a duplicate name are
+    /// dropped.
+    pub(super) fn add_inferred_from_signature(&mut self, item_fn: &ItemFn) {
+        #[cfg(feature = "axum")]
+        {
+            let inferred = super::path_inference::infer_path_parameters(item_fn);
+            for param in inferred {
+                if self
+                    .path_parameters
+                    .iter()
+                    .any(|p| p.name() == param.name())
+                {
+                    continue;
+                }
+                self.path_parameters.push(param);
+            }
+        }
+        #[cfg(not(feature = "axum"))]
+        {
+            let _ = item_fn;
+        }
+    }
 }
 
 impl FromMeta for Parameters {
@@ -88,6 +112,7 @@ impl ToTokens for Parameters {
         let header_parameters = self.header_parameters.iter().map(|x| x.for_parameter());
         let path_parameters = &self.path_parameters;
         let query_parameters = &self.query_parameters;
+        let cookie_parameters = &self.cookie_parameters;
         let ref_parameters = &self.ref_parameters;
         tokens.extend(quote! {
             parameters: {
@@ -95,6 +120,7 @@ impl ToTokens for Parameters {
                 #(v.push(okapi::openapi3::RefOr::Object(#header_parameters));)*
                 #(v.push(okapi::openapi3::RefOr::Object(#path_parameters));)*
                 #(v.push(okapi::openapi3::RefOr::Object(#query_parameters));)*
+                #(v.push(okapi::openapi3::RefOr::Object(#cookie_parameters));)*
                 #(v.push(#ref_parameters);)*
                 v
             },

@@ -21,6 +21,24 @@ pub(super) struct Path {
     content: Option<String>,
 }
 
+impl Path {
+    pub(super) fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Build a path parameter inferred from a function argument.
+    pub(super) fn new_inferred(name: String, schema: syn::Path) -> Self {
+        Self {
+            name,
+            description: None,
+            deprecated: false,
+            style: None,
+            schema,
+            content: None,
+        }
+    }
+}
+
 impl ToTokens for Path {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let name = &self.name;

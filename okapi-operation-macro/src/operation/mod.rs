@@ -18,6 +18,7 @@ mod external_docs;
 mod header;
 mod parameters;
 mod path;
+mod path_inference;
 mod query;
 mod reference;
 mod request_body;
@@ -138,6 +139,9 @@ pub(crate) fn openapi(
     operation_attrs
         .responses
         .add_return_type(&input, operation_attrs.responses.ignore_return_type);
+    operation_attrs
+        .parameters
+        .add_inferred_from_signature(&input);
     let request_body = RequestBody::from_item_fn(&mut input)?;
     let openapi_generator_fn =
         build_openapi_generator_fn(&input.sig.ident, &input.vis, operation_attrs, request_body)?;
