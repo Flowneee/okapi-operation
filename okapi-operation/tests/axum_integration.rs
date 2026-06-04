@@ -372,6 +372,7 @@ mod path_inference {
 
     #[test]
     fn infers_struct_path_parameters_per_field() {
+        #![allow(unused)]
         #[derive(Deserialize, JsonSchema)]
         struct Params {
             system: String,
@@ -402,6 +403,7 @@ mod path_inference {
 
     #[test]
     fn struct_field_not_in_route_is_rejected() {
+        #![allow(unused)]
         #[derive(Deserialize, JsonSchema)]
         struct Params {
             system: String,
@@ -428,6 +430,7 @@ mod path_inference {
 
     #[test]
     fn explicit_declaration_wins_over_inferred_struct_field() {
+        #![allow(unused)]
         #[derive(Deserialize, JsonSchema)]
         struct Params {
             system: String,
