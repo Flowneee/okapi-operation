@@ -49,6 +49,9 @@ pub(super) struct Parameters {
     query_parameters: Vec<Query>,
     cookie_parameters: Vec<Cookie>,
     ref_parameters: Vec<Reference>,
+    /// Single `Path<T>` bindings expanded at runtime (axum feature only).
+    #[cfg(feature = "axum")]
+    inferred_path_extractors: Vec<super::path_inference::InferredSingle>,
 }
 
 impl Parameters {
@@ -60,7 +63,9 @@ impl Parameters {
         #[cfg(feature = "axum")]
         {
             let inferred = super::path_inference::infer_path_parameters(item_fn);
-            for param in inferred {
+            // Tuple elements have known names — dedup against explicit declarations
+            // at macro time.
+            for param in inferred.tuple_params {
                 if self
                     .path_parameters
                     .iter()
@@ -70,6 +75,9 @@ impl Parameters {
                 }
                 self.path_parameters.push(param);
             }
+            // Single bindings are expanded (and deduped) at runtime, since struct
+            // field names are unknown until the JSON schema is generated.
+            self.inferred_path_extractors.extend(inferred.singles);
         }
         #[cfg(not(feature = "axum"))]
         {
@@ -114,14 +122,45 @@ impl ToTokens for Parameters {
         let query_parameters = &self.query_parameters;
         let cookie_parameters = &self.cookie_parameters;
         let ref_parameters = &self.ref_parameters;
+
+        // Runtime expansion of single `Path<T>` bindings. Emitted after the
+        // explicit/tuple pushes so the dedup below sees already-declared path
+        // parameters (explicit declarations win over inferred ones).
+        #[cfg(feature = "axum")]
+        let inferred_extractors = self.inferred_path_extractors.iter().map(|single| {
+            let ty = &single.ty;
+            let fallback_name = &single.fallback_name;
+            quote! {
+                {
+                    let __declared: std::collections::HashSet<String> = v
+                        .iter()
+                        .filter_map(|p| match p {
+                            okapi::openapi3::RefOr::Object(o) if o.location == "path" => {
+                                Some(o.name.clone())
+                            }
+                            _ => None,
+                        })
+                        .collect();
+                    for __p in components.infer_path_parameters::<#ty>(#fallback_name) {
+                        if !__declared.contains(&__p.name) {
+                            v.push(okapi::openapi3::RefOr::Object(__p));
+                        }
+                    }
+                }
+            }
+        });
+        #[cfg(not(feature = "axum"))]
+        let inferred_extractors = std::iter::empty::<TokenStream>();
+
         tokens.extend(quote! {
             parameters: {
-                let mut v = Vec::new();
+                let mut v: Vec<okapi::openapi3::RefOr<okapi::openapi3::Parameter>> = Vec::new();
                 #(v.push(okapi::openapi3::RefOr::Object(#header_parameters));)*
                 #(v.push(okapi::openapi3::RefOr::Object(#path_parameters));)*
                 #(v.push(okapi::openapi3::RefOr::Object(#query_parameters));)*
                 #(v.push(okapi::openapi3::RefOr::Object(#cookie_parameters));)*
                 #(v.push(#ref_parameters);)*
+                #(#inferred_extractors)*
                 v
             },
         });

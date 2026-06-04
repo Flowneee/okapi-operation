@@ -248,6 +248,16 @@ Unlike header and query parameters, all path parameters is mandatory.
 async fn handler() {}
 ```
 
+With the `axum` feature, path parameters are also inferred from the handler
+signature for the `Path<...>` extractor: a scalar `Path<T>` yields a single
+parameter, a tuple `Path<(T1, T2)>` yields one parameter per position, and a
+struct `Path<Struct>` yields one parameter per field (matching how axum
+deserializes by field name; the struct must implement `JsonSchema`). Explicit
+`parameters(path(...))` declarations always take precedence over inferred ones
+with the same name. When building the specification, each declared/inferred
+path parameter is validated against the route template and building fails if it
+has no matching `{placeholder}`.
+
 #### Cookie
 
 `cookie` have following attributes:

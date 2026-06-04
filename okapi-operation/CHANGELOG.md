@@ -5,6 +5,18 @@ This project follows the [Semantic Versioning standard](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Path-parameter inference now supports struct extractors: when the `axum`
+  feature is enabled, `Path(params): Path<Struct>` expands to one path parameter
+  per struct field (matching how axum deserializes `Path<Struct>` by field
+  name). The struct must implement `JsonSchema`; the struct-vs-scalar decision
+  is made at runtime via `Components::infer_path_parameters`.
+- `OpenApiBuilder::build` (and `add_operation`) now validate path parameters
+  against the route template: building fails if a declared/inferred `path`
+  parameter has no matching `{placeholder}` in the route. Extra placeholders are
+  allowed; reference parameters are skipped.
+
 ## [0.3.1] - 2026-05-30
 
 ### Added

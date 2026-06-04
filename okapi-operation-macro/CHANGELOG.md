@@ -5,6 +5,15 @@ This project follows the [Semantic Versioning standard](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- A third `Path<...>` extractor shape is recognized: a single binding over a
+  struct type (`Path(params): Path<Struct>`). Because the macro cannot tell a
+  struct from a scalar at compile time, single bindings are now expanded at
+  runtime through `Components::infer_path_parameters` — a struct yields one
+  parameter per field, a scalar yields a single parameter. Explicit
+  `parameters(path(...))` declarations still win over inferred ones.
+
 ## [0.3.1] - 2026-05-30
 
 ### Added
