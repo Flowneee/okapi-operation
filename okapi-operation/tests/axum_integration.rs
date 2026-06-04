@@ -96,15 +96,15 @@ mod parameters {
         async fn handle() {}
 
         let schema = Router::<()>::new()
-            .route("/", get(oh!(handle)))
+            .route("/{path-param}", get(oh!(handle)))
             .generate_openapi_builder()
             .build()
             .expect("schema generation shouldn't fail");
 
-        let operation = schema.paths["/"]
+        let operation = schema.paths["/{path-param}"]
             .clone()
             .get
-            .expect("GET / should be present");
+            .expect("GET /{path-param} should be present");
         operation
             .parameters
             .into_iter()
@@ -235,9 +235,12 @@ mod path_inference {
     use axum::extract::Path;
     use okapi::openapi3::{ParameterValue, RefOr};
     use okapi_operation::{
+        JsonSchema,
         axum_integration::{Router, get, post},
-        oh, openapi,
+        // `schemars` must be in scope: the `JsonSchema` derive expands to `schemars::` paths.
+        oh, openapi, schemars,
     };
+    use serde::Deserialize;
 
     fn parameters(
         route: &str,
@@ -363,6 +366,90 @@ mod path_inference {
 
         let op = get_op(&schema, "/api/{system}");
         assert!(op.parameters.is_empty(), "no params should be inferred");
+    }
+
+    #[test]
+    fn infers_struct_path_parameters_per_field() {
+        #[derive(Deserialize, JsonSchema)]
+        struct Params {
+            system: String,
+            backup_id: u32,
+        }
+
+        #[openapi]
+        async fn handle(Path(params): Path<Params>) {
+            let _ = params;
+        }
+
+        let schema = Router::<()>::new()
+            .route("/api/{system}/backup/{backup_id}", get(oh!(handle)))
+            .generate_openapi_builder()
+            .build()
+            .expect("schema generation shouldn't fail");
+
+        let params = parameters(
+            "/api/{system}/backup/{backup_id}",
+            "GET",
+            get_op(&schema, "/api/{system}/backup/{backup_id}"),
+        );
+        assert_eq!(params.len(), 2, "one param per struct field");
+        // Field declaration order is preserved.
+        assert_path_param(&params[0], "system");
+        assert_path_param(&params[1], "backup_id");
+    }
+
+    #[test]
+    fn struct_field_not_in_route_is_rejected() {
+        #[derive(Deserialize, JsonSchema)]
+        struct Params {
+            system: String,
+            // `unexpected` has no matching `{placeholder}` in the route below.
+            unexpected: String,
+        }
+
+        #[openapi]
+        async fn handle(Path(params): Path<Params>) {
+            let _ = params;
+        }
+
+        let result = Router::<()>::new()
+            .route("/api/{system}", get(oh!(handle)))
+            .generate_openapi_builder()
+            .build();
+
+        let err = result.expect_err("mismatched struct field must fail build");
+        assert!(
+            format!("{err:#}").contains("unexpected"),
+            "error should name the offending parameter: {err:#}"
+        );
+    }
+
+    #[test]
+    fn explicit_declaration_wins_over_inferred_struct_field() {
+        #[derive(Deserialize, JsonSchema)]
+        struct Params {
+            system: String,
+        }
+
+        #[openapi(parameters(path(
+            name = "system",
+            description = "system id",
+            schema = "String"
+        )))]
+        async fn handle(Path(params): Path<Params>) {
+            let _ = params;
+        }
+
+        let schema = Router::<()>::new()
+            .route("/api/{system}", get(oh!(handle)))
+            .generate_openapi_builder()
+            .build()
+            .expect("schema generation shouldn't fail");
+
+        let params = parameters("/api/{system}", "GET", get_op(&schema, "/api/{system}"));
+        assert_eq!(params.len(), 1, "no duplicate from inference");
+        assert_eq!(params[0].name, "system");
+        assert_eq!(params[0].description.as_deref(), Some("system id"));
     }
 }
 

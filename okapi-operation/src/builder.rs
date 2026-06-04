@@ -4,7 +4,8 @@ use anyhow::{Context, anyhow, bail};
 use http::Method;
 use indexmap::IndexMap;
 use okapi::openapi3::{
-    Contact, ExternalDocs, License, OpenApi, SecurityRequirement, SecurityScheme, Server, Tag,
+    Contact, ExternalDocs, License, OpenApi, Operation, RefOr, SecurityRequirement, SecurityScheme,
+    Server, Tag,
 };
 
 use crate::{OperationGenerator, components::Components};
@@ -182,6 +183,7 @@ impl OpenApiBuilder {
         generator: OperationGenerator,
     ) -> Result<&mut Self, anyhow::Error> {
         let operation_schema = generator(&mut self.components, &self.builder_options)?;
+        validate_path_parameters(path, &operation_schema)?;
 
         // Check operation id doesn't exists
         if let Some(operation_id) = operation_schema.operation_id.as_ref() {
@@ -324,6 +326,42 @@ impl OpenApiBuilder {
     }
 }
 
+/// Ensure every declared `path` parameter has a matching `{placeholder}` in the
+/// route template. Reference parameters (`RefOr::Ref`) are skipped because their
+/// names are not known here. Undeclared placeholders are allowed.
+fn validate_path_parameters(path: &str, operation: &Operation) -> Result<(), anyhow::Error> {
+    let placeholders = route_placeholders(path);
+    for parameter in &operation.parameters {
+        if let RefOr::Object(param) = parameter {
+            if param.location == "path" && !placeholders.contains(&param.name) {
+                bail!(
+                    "path parameter `{}` is declared but not present in route `{}`",
+                    param.name,
+                    path
+                );
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Extract `{name}` placeholders from an axum-style route template. Catch-all
+/// segments (`{*name}`) contribute the bare `name`.
+fn route_placeholders(path: &str) -> HashSet<String> {
+    let mut placeholders = HashSet::new();
+    let mut rest = path;
+    while let Some(open) = rest.find('{') {
+        rest = &rest[open + 1..];
+        let Some(close) = rest.find('}') else { break };
+        let name = rest[..close].trim_start_matches('*');
+        if !name.is_empty() {
+            placeholders.insert(name.to_string());
+        }
+        rest = &rest[close + 1..];
+    }
+    placeholders
+}
+
 fn try_add_path(
     spec: &mut OpenApi,
     components: &mut Components,
@@ -333,6 +371,7 @@ fn try_add_path(
     generator: OperationGenerator,
 ) -> Result<(), anyhow::Error> {
     let operation_schema = generator(components, builder_options)?;
+    validate_path_parameters(path, &operation_schema)?;
     let path_str = path;
     let path = spec.paths.entry(path.into()).or_default();
     if method == Method::DELETE {

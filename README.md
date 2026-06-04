@@ -61,12 +61,13 @@ fn main() {
 
 With the `axum` feature enabled, path parameters are inferred from the
 function signature, so handlers that use the axum `Path<...>` extractor no
-longer need to repeat their names in `parameters(path(...))`. Two binding
+longer need to repeat their names in `parameters(path(...))`. Three binding
 shapes are recognized:
 
 ```rust,no_run
 use axum::extract::Path;
 use okapi_operation::{axum_integration::*, *};
+use serde::Deserialize;
 
 // Single path parameter — inferred as `system: String`.
 #[openapi(operation_id = "get_system")]
@@ -79,11 +80,30 @@ async fn get_system(Path(system): Path<String>) -> String {
 async fn abort_backup(Path((system, backup_name)): Path<(String, String)>) {
     let _ = (system, backup_name);
 }
+
+// Struct — inferred as one parameter per field (matching how axum
+// deserializes `Path<Struct>` by field name): `system: String`, `backup_id: u32`.
+#[derive(Deserialize, JsonSchema)]
+struct BackupParams {
+    system: String,
+    backup_id: u32,
+}
+
+#[openapi(operation_id = "get_backup")]
+async fn get_backup(Path(params): Path<BackupParams>) {
+    let _ = params;
+}
 ```
 
-Anything more involved (struct extractors, wildcard `_` bindings, references,
-…) is left to explicit `parameters(path(...))` declarations, which always
-take precedence over inferred entries with the same name.
+Struct fields are matched to the route by name, so the type must implement
+`JsonSchema`. Wildcard `_` bindings and reference parameters are left to
+explicit `parameters(path(...))` declarations, which always take precedence
+over inferred entries with the same name.
+
+When the specification is built, every declared/inferred `path` parameter is
+validated against the route template: building fails if a parameter has no
+matching `{placeholder}` in the route (e.g. a misspelled struct field). Extra
+placeholders in the route are allowed.
 
 ## Cookie parameters
 

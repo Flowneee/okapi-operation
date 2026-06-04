@@ -1,8 +1,9 @@
 use okapi::{
-    openapi3::{RefOr, SchemaObject, SecurityScheme},
+    openapi3::{Parameter, ParameterValue, RefOr, SchemaObject, SecurityScheme},
     schemars::{
         JsonSchema,
         gen::{SchemaGenerator, SchemaSettings},
+        schema::Schema,
     },
 };
 
@@ -69,6 +70,69 @@ impl Components {
         object
     }
 
+    /// Expand an axum-style `Path<T>` extractor into OpenAPI path parameters.
+    ///
+    /// The struct-vs-scalar decision is made here, at runtime, because the
+    /// `#[openapi]` macro only sees the syntactic type name `T` and cannot tell
+    /// a struct from a primitive at compile time.
+    ///
+    /// - If `T`'s schema is an object with named fields (a struct), one path
+    ///   parameter is produced per field (field name → parameter name, field
+    ///   schema → parameter schema). This mirrors how axum deserializes
+    ///   `Path<Struct>` by field name.
+    /// - Otherwise (scalar / newtype), a single parameter named `fallback_name`
+    ///   is produced with `T`'s schema.
+    pub fn infer_path_parameters<T: JsonSchema>(&mut self, fallback_name: &str) -> Vec<Parameter> {
+        let schema = self.schema_for::<T>();
+
+        // Collect the struct fields, resolving a possible `$ref` against the
+        // generator's definitions (schemars references named structs by default).
+        // Done in a block so the immutable `definitions()` borrow is released
+        // before the `visitors_mut()` call below.
+        let properties: Option<Vec<(String, SchemaObject)>> = {
+            let resolved = match &schema.reference {
+                Some(reference) => reference
+                    .rsplit('/')
+                    .next()
+                    .and_then(|name| self.generator.definitions().get(name))
+                    .and_then(|s| match s {
+                        Schema::Object(obj) => Some(obj.clone()),
+                        Schema::Bool(_) => None,
+                    }),
+                None => Some(schema.clone()),
+            };
+            resolved
+                .and_then(|obj| obj.object)
+                .filter(|obj| !obj.properties.is_empty())
+                .map(|obj| {
+                    obj.properties
+                        .into_iter()
+                        .map(|(name, prop)| {
+                            let prop_object = match prop {
+                                Schema::Object(obj) => obj,
+                                Schema::Bool(_) => SchemaObject::default(),
+                            };
+                            (name, prop_object)
+                        })
+                        .collect()
+                })
+        };
+
+        match properties {
+            Some(fields) => fields
+                .into_iter()
+                .map(|(name, mut prop_object)| {
+                    // Apply the same visitor passes `schema_for` runs on schemas.
+                    for visitor in self.generator.visitors_mut() {
+                        visitor.visit_schema_object(&mut prop_object);
+                    }
+                    path_parameter(name, prop_object)
+                })
+                .collect(),
+            None => vec![path_parameter(fallback_name.to_string(), schema)],
+        }
+    }
+
     /// Add security scheme to components.
     pub fn add_security_scheme<N>(&mut self, name: N, sec: SecurityScheme)
     where
@@ -100,5 +164,27 @@ impl Components {
             let _ = components.schemas.insert(name, schema_object);
         }
         Ok(components)
+    }
+}
+
+/// Build a required `path` parameter from a name and schema. Mirrors the literal
+/// produced by the macro in `okapi-operation-macro`'s `path::Path::to_tokens`.
+fn path_parameter(name: String, schema: SchemaObject) -> Parameter {
+    Parameter {
+        name,
+        location: "path".into(),
+        description: None,
+        required: true,
+        deprecated: false,
+        allow_empty_value: false,
+        value: ParameterValue::Schema {
+            style: None,
+            explode: None,
+            allow_reserved: false,
+            schema,
+            example: Default::default(),
+            examples: Default::default(),
+        },
+        extensions: Default::default(),
     }
 }
