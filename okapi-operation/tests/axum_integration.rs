@@ -238,7 +238,9 @@ mod path_inference {
         JsonSchema,
         axum_integration::{Router, get, post},
         // `schemars` must be in scope: the `JsonSchema` derive expands to `schemars::` paths.
-        oh, openapi, schemars,
+        oh,
+        openapi,
+        schemars,
     };
     use serde::Deserialize;
 
